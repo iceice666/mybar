@@ -9,7 +9,14 @@ chrono = "0.4.42"
 iced = { version = "0.14.0", features = ["tokio"] }
 iced_fonts = { version = "0.3.0", features = ["lucide"] }
 objc2 = "0.6.4"
-objc2-app-kit = { version = "0.3.2", features = ["NSScreen", "NSView", "NSWindow"] }
+objc2-app-kit = { version = "0.3.2", features = [
+    "NSApplication",
+    "NSAppearance",
+    "NSColor",
+    "NSScreen",
+    "NSView",
+    "NSWindow",
+] }
 objc2-foundation = { version = "0.3.2", features = ["objc2-core-foundation"] }
 raw-window-handle = "0.6.2"
 sysinfo = "0.37.0"

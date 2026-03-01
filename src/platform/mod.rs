@@ -1,5 +1,6 @@
 #[derive(Debug, Clone)]
 pub struct DisplaySpec {
+    #[allow(dead_code)]
     pub index: usize,
     pub x: f32,
     pub width: f32,
@@ -37,4 +38,24 @@ pub fn configure_bar_window(
 ) -> Result<(), String> {
     Ok(())
 }
+
+#[cfg(target_os = "macos")]
+#[allow(dead_code)]
+pub fn is_dark_mode() -> bool {
+    macos::is_dark_mode()
+}
+
+#[cfg(not(target_os = "macos"))]
+#[allow(dead_code)]
+pub fn is_dark_mode() -> bool {
+    false
+}
+
+#[cfg(target_os = "macos")]
+pub fn hide_from_dock() {
+    macos::hide_from_dock();
+}
+
+#[cfg(not(target_os = "macos"))]
+pub fn hide_from_dock() {}
 // Reserved for future platform-specific UI integrations.

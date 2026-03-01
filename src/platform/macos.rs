@@ -2,7 +2,8 @@ use super::DisplaySpec;
 use objc2::MainThreadMarker;
 use objc2::rc::Retained;
 use objc2_app_kit::{
-    NSMainMenuWindowLevel, NSScreen, NSView, NSWindowCollectionBehavior, NSWindowStyleMask,
+    NSApplication, NSApplicationActivationPolicy, NSColor, NSMainMenuWindowLevel, NSScreen,
+    NSView, NSWindowCollectionBehavior, NSWindowStyleMask,
 };
 use objc2_foundation::{NSPoint, NSRect, NSSize};
 use raw_window_handle::RawWindowHandle;
@@ -83,9 +84,37 @@ pub fn configure_bar_window(
     ns_window.setStyleMask(NSWindowStyleMask::Borderless);
     ns_window.setCollectionBehavior(NSWindowCollectionBehavior::CanJoinAllSpaces);
     ns_window.setLevel(NSMainMenuWindowLevel);
+    ns_window.setOpaque(false);
+    ns_window.setBackgroundColor(Some(&NSColor::clearColor()));
     ns_window.setFrame_display(target_frame, true);
     // SAFETY: We keep ownership in Rust and do not want AppKit autoreleasing behavior.
     unsafe { ns_window.setReleasedWhenClosed(false) };
 
     Ok(())
+}
+
+#[allow(dead_code)]
+pub fn is_dark_mode() -> bool {
+    let Some(mtm) = MainThreadMarker::new() else {
+        return false;
+    };
+
+    let app = NSApplication::sharedApplication(mtm);
+    let appearance = app.effectiveAppearance();
+    appearance.name().to_string().to_lowercase().contains("dark")
+}
+
+pub fn hide_from_dock() {
+    // Cursor's seatbelt sandbox blocks the LaunchServices calls used by
+    // activation policy changes, which causes noisy XPC errors in `cargo run`.
+    if std::env::var_os("CURSOR_SANDBOX").is_some() {
+        return;
+    }
+
+    let Some(mtm) = MainThreadMarker::new() else {
+        return;
+    };
+
+    let app = NSApplication::sharedApplication(mtm);
+    let _ = app.setActivationPolicy(NSApplicationActivationPolicy::Accessory);
 }
