@@ -19,7 +19,8 @@ fn main() {
     println!("cargo::rerun-if-changed={}", json_path.display());
 
     let json = fs::read_to_string(&json_path).expect("failed to read icon_map.json");
-    let entries: Vec<IconEntry> = serde_json::from_str(&json).expect("failed to parse icon_map.json");
+    let entries: Vec<IconEntry> =
+        serde_json::from_str(&json).expect("failed to parse icon_map.json");
 
     let out_dir = env::var("OUT_DIR").unwrap();
     let dest = Path::new(&out_dir).join("icon_map.rs");

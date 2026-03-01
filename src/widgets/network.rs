@@ -70,23 +70,27 @@ impl State {
     }
 }
 
-/// Format bytes/s as K: < 1 K → "0 K", < 100 K → one decimal, else integer.
 fn format_k(bytes_per_sec: f64) -> String {
-    if bytes_per_sec < 1024.0 {
-        return " 0.0K".to_string();
+    let kb = bytes_per_sec / 1024.0;
+
+    if kb < 1.0 {
+        return " -- ".to_string();
     }
 
-    let kb = bytes_per_sec / 1024.0;
-    if kb < 100.0 {
-        return format!("{:2.1}K", kb);
-    }
-    if kb < 1000.0 {
-        return format!("{:3.0}K", kb);
-    }
     if kb < 1024.0 {
-        return " 1.0M".to_string();
+        if kb < 100.0 {
+            format!("{:.1}K", kb)
+        } else {
+            format!("{:.0}K ", kb)
+        }
+    } else {
+        let mb = kb / 1024.0;
+        if mb < 100.0 {
+            format!("{:.1}M", mb)
+        } else {
+            format!("{:.0}M ", mb)
+        }
     }
-    return format!("{:3.0}M", kb / 1024.0);
 }
 
 fn get_net_state(networks: &mut Networks) -> (u64, u64) {

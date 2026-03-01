@@ -39,16 +39,7 @@ impl State {
         .spacing(0)
         .align_x(iced::Alignment::Center);
 
-        let data = row![
-            lucide::calendar_clock()
-                .size(16)
-                .color(crate::hex!(0x000000)),
-            content,
-        ]
-        .spacing(4)
-        .align_y(iced::Alignment::Center);
-
-        button(data)
+        button(content)
             .padding([0, 6])
             .style(crate::widget_container_style)
             .into()

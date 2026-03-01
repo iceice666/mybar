@@ -2,8 +2,8 @@ use super::DisplaySpec;
 use objc2::MainThreadMarker;
 use objc2::rc::Retained;
 use objc2_app_kit::{
-    NSApplication, NSApplicationActivationPolicy, NSColor, NSMainMenuWindowLevel, NSScreen,
-    NSView, NSWindowCollectionBehavior, NSWindowStyleMask,
+    NSApplication, NSApplicationActivationPolicy, NSColor, NSMainMenuWindowLevel, NSScreen, NSView,
+    NSWindowCollectionBehavior, NSWindowStyleMask,
 };
 use objc2_foundation::{NSPoint, NSRect, NSSize};
 use raw_window_handle::RawWindowHandle;
@@ -101,7 +101,11 @@ pub fn is_dark_mode() -> bool {
 
     let app = NSApplication::sharedApplication(mtm);
     let appearance = app.effectiveAppearance();
-    appearance.name().to_string().to_lowercase().contains("dark")
+    appearance
+        .name()
+        .to_string()
+        .to_lowercase()
+        .contains("dark")
 }
 
 pub fn hide_from_dock() {

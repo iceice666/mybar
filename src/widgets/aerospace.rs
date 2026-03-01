@@ -1,6 +1,6 @@
 use crate::FONT_ICON;
 use iced::Element;
-use iced::widget::{Row, button, text};
+use iced::widget::{Row, button, container, text};
 
 include!(concat!(env!("OUT_DIR"), "/icon_map.rs"));
 
@@ -34,6 +34,10 @@ pub struct State {
 impl State {
     pub fn apply(&mut self, data: Data) {
         self.data = data;
+    }
+
+    pub fn focused_workspace(&self) -> Option<String> {
+        self.data.focused_workspace.clone()
     }
 
     pub fn set_focused_workspace(&mut self, focused_workspace: Option<String>) -> bool {
@@ -78,10 +82,15 @@ impl State {
         let row = self.data.used_workspaces.iter().fold(
             Row::new().spacing(4).align_y(iced::Alignment::Center),
             |row, ws| {
-                let _active = Some(ws.as_str()) == focused;
+                let active = Some(ws.as_str()) == focused;
+                let style = if active {
+                    crate::focused_widget_container_style
+                } else {
+                    crate::widget_container_style
+                };
                 let badge = button(text(ws).color(crate::hex!(0x000000)))
                     .padding([1.0, 6.0])
-                    .style(crate::widget_container_style);
+                    .style(style);
                 row.push(badge)
             },
         );
@@ -98,16 +107,27 @@ impl State {
             Row::new().spacing(4).align_y(iced::Alignment::Center),
             |row, app| {
                 let icon = app_name_to_icon(app);
-                row.push(
+                let name_style = (14, crate::hex!(0x000000));
+                let content: Element<'_, crate::Message> = if icon == ":default:" {
+                    text(app.as_str())
+                        .size(name_style.0)
+                        .color(name_style.1)
+                        .into()
+                } else {
                     text(icon)
                         .font(FONT_ICON)
                         .size(18)
-                        .color(crate::hex!(0x000000)),
-                )
+                        .color(crate::hex!(0x000000))
+                        .into()
+                };
+                row.push(content)
             },
         );
 
-        row.into()
+        container(row)
+            .padding([1.0, 6.0])
+            .style(|_| crate::widget_container_style_container())
+            .into()
     }
 }
 

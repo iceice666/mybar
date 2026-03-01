@@ -25,6 +25,19 @@ pub fn widget_container_style(_theme: &Theme, _status: button::Status) -> button
     }
 }
 
+/// Focused workspace badge: distinct bg for testing (#DDAACC66)
+pub fn focused_widget_container_style(_theme: &Theme, _status: button::Status) -> button::Style {
+    button::Style {
+        background: Background::Color(crate::hex!(0xDDAACC66)).into(),
+        border: Border {
+            color: crate::hex!(0xDDAACC66),
+            width: 1.0,
+            radius: 6.0.into(),
+        },
+        ..Default::default()
+    }
+}
+
 fn bar_container_style() -> container::Style {
     container::Style::default()
         .background(Background::Color(Color::TRANSPARENT))
@@ -32,6 +45,17 @@ fn bar_container_style() -> container::Style {
             color: crate::hex!(0x00000022),
             width: 1.0,
             radius: 8.0.into(),
+        })
+}
+
+/// Container style matching widget buttons (bg #ffffff66) for the apps area etc.
+pub fn widget_container_style_container() -> container::Style {
+    container::Style::default()
+        .background(Background::Color(crate::hex!(0xffffff66)))
+        .border(Border {
+            color: crate::hex!(0x00000022),
+            width: 1.0,
+            radius: 6.0.into(),
         })
 }
 
@@ -135,9 +159,13 @@ fn update(state: &mut BarApp, message: Message) -> Task<Message> {
                 Message::AerospaceModeUpdated,
             ),
         ]),
-        Message::AerospaceFallbackTick => {
-            Task::perform(widgets::aerospace::load_data(), Message::AerospaceUpdated)
-        }
+        Message::AerospaceFallbackTick => Task::batch(vec![
+            Task::perform(widgets::aerospace::load_data(), Message::AerospaceUpdated),
+            Task::perform(
+                widgets::aerospace::load_apps_for_workspace(state.aerospace.focused_workspace()),
+                Message::AerospaceFocusedAppsUpdated,
+            ),
+        ]),
         Message::MediumTick(now) => {
             state.perf.refresh(now);
             state.network.refresh(now);
@@ -155,8 +183,16 @@ fn update(state: &mut BarApp, message: Message) -> Task<Message> {
             Task::none()
         }
         Message::AerospaceUpdated(data) => {
+            let focused = data.focused_workspace.clone();
             state.aerospace.apply(data);
-            Task::none()
+            if let Some(workspace) = focused {
+                Task::perform(
+                    widgets::aerospace::load_apps_for_workspace(Some(workspace)),
+                    Message::AerospaceFocusedAppsUpdated,
+                )
+            } else {
+                Task::none()
+            }
         }
         Message::AerospaceFocusedWorkspaceUpdated(focused_workspace) => {
             if state
@@ -213,6 +249,7 @@ fn view<'a>(state: &'a BarApp, id: window::Id) -> Element<'a, Message> {
         state.aerospace.view_apps(),
     ]
     .spacing(8)
+    .height(Length::Fill)
     .align_y(iced::Alignment::Center);
 
     let right = row![
@@ -223,15 +260,20 @@ fn view<'a>(state: &'a BarApp, id: window::Id) -> Element<'a, Message> {
         state.clock.view(),
     ]
     .spacing(4)
+    .height(Length::Fill)
     .align_y(iced::Alignment::Center);
 
-    container(row![left, Space::new().width(Length::Fill), right])
-        .align_y(iced::Alignment::Center)
-        .height(Length::Fill)
-        .width(Length::Fill)
-        .padding([2.0, 10.0])
-        .style(|_| bar_container_style())
-        .into()
+    container(
+        row![left, Space::new().width(Length::Fill), right]
+            .height(Length::Fill)
+            .align_y(iced::Alignment::Center),
+    )
+    .align_y(iced::Alignment::Center)
+    .height(Length::Fill)
+    .width(Length::Fill)
+    .padding([2.0, 10.0])
+    .style(|_| bar_container_style())
+    .into()
 }
 
 fn title(_state: &BarApp, _id: window::Id) -> String {
