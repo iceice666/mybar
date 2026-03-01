@@ -1,5 +1,6 @@
 use iced::widget::text;
-use iced::Element;
+use iced::{Element, Subscription, Task};
+use std::time::Duration;
 
 #[derive(Debug, Clone)]
 pub struct Data {
@@ -12,12 +13,34 @@ pub struct State {
     current: Option<Data>,
 }
 
+#[derive(Debug, Clone)]
+pub enum Message {
+    Tick,
+    Updated(Option<Data>),
+}
+
 impl State {
-    pub fn apply(&mut self, data: Option<Data>) {
-        self.current = data;
+    pub fn new() -> (Self, Task<Message>) {
+        let state = Self::default();
+        let task = Task::perform(load_data(), Message::Updated);
+        (state, task)
     }
 
-    pub fn view<'a>(&'a self) -> Element<'a, crate::Message> {
+    pub fn update(&mut self, message: Message) -> Task<Message> {
+        match message {
+            Message::Tick => Task::perform(load_data(), Message::Updated),
+            Message::Updated(data) => {
+                self.current = data;
+                Task::none()
+            }
+        }
+    }
+
+    pub fn subscription(&self) -> Subscription<Message> {
+        iced::time::every(Duration::from_secs(2)).map(|_| Message::Tick)
+    }
+
+    pub fn view<'a>(&'a self) -> Element<'a, Message> {
         let Some(current) = &self.current else {
             return text(String::new()).into();
         };

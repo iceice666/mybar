@@ -1,4 +1,3 @@
-pub mod aerospace;
 pub mod battery;
 pub mod clock;
 pub mod network;

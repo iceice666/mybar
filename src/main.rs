@@ -1,78 +1,22 @@
-use iced::widget::{Space, button, container, row};
-use iced::{
-    Background, Border, Color, Element, Font, Length, Point, Size, Subscription, Task, Theme, time,
-    window,
-};
+use iced::widget::{Space, container, row};
+use iced::{Color, Element, Length, Point, Size, Subscription, Task, window};
 use std::collections::BTreeMap;
-use std::time::{Duration, Instant};
 
 mod platform;
+use crate::wm::Wm;
+mod style;
 mod theme;
 mod widgets;
+mod wm;
 
 const BAR_HEIGHT: f32 = 36.0;
 
-/// All widgets: bg #ffffff66, fg #000000
-pub fn widget_container_style(_theme: &Theme, _status: button::Status) -> button::Style {
-    button::Style {
-        background: Background::Color(crate::hex!(0xffffff66)).into(),
-        border: Border {
-            color: crate::hex!(0x00000022),
-            width: 1.0,
-            radius: 6.0.into(),
-        },
-        ..Default::default()
-    }
-}
-
-/// Focused workspace badge: distinct bg for testing (#DDAACC66)
-pub fn focused_widget_container_style(_theme: &Theme, _status: button::Status) -> button::Style {
-    button::Style {
-        background: Background::Color(crate::hex!(0xDDAACC66)).into(),
-        border: Border {
-            color: crate::hex!(0xDDAACC66),
-            width: 1.0,
-            radius: 6.0.into(),
-        },
-        ..Default::default()
-    }
-}
-
-fn bar_container_style() -> container::Style {
-    container::Style::default()
-        .background(Background::Color(Color::TRANSPARENT))
-        .border(Border {
-            color: crate::hex!(0x00000022),
-            width: 1.0,
-            radius: 8.0.into(),
-        })
-}
-
-/// Container style matching widget buttons (bg #ffffff66) for the apps area etc.
-pub fn widget_container_style_container() -> container::Style {
-    container::Style::default()
-        .background(Background::Color(crate::hex!(0xffffff66)))
-        .border(Border {
-            color: crate::hex!(0x00000022),
-            width: 1.0,
-            radius: 6.0.into(),
-        })
-}
-
-pub const FONT_TEXT: Font = Font {
-    family: iced::font::Family::Name("Cascadia Code NF"),
-    ..Font::DEFAULT
-};
-
-pub const FONT_ICON: Font = Font {
-    family: iced::font::Family::Name("sketchybar-app-font"),
-    ..Font::DEFAULT
-};
+type WmMessage = <wm::ActiveWm as wm::Wm>::Message;
 
 struct BarApp {
     windows: BTreeMap<window::Id, platform::DisplaySpec>,
     dock_hidden: bool,
-    aerospace: widgets::aerospace::State,
+    wm: wm::ActiveWm,
     now_playing: widgets::now_playing::State,
     perf: widgets::perf::State,
     network: widgets::network::State,
@@ -80,50 +24,43 @@ struct BarApp {
     clock: widgets::clock::State,
 }
 
-impl Default for BarApp {
-    fn default() -> Self {
-        Self {
-            windows: BTreeMap::new(),
-            dock_hidden: false,
-            aerospace: widgets::aerospace::State::default(),
-            now_playing: widgets::now_playing::State::default(),
-            perf: widgets::perf::State::default(),
-            network: widgets::network::State::default(),
-            battery: widgets::battery::State::default(),
-            clock: widgets::clock::State::default(),
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
 enum Message {
     WindowCreated(window::Id, platform::DisplaySpec),
     WindowEvent(window::Id, window::Event),
-    FastTick,
-    AerospaceFallbackTick,
-    MediumTick(Instant),
-    SlowTick,
-    ClockTick,
-    AerospaceUpdated(widgets::aerospace::Data),
-    AerospaceFocusedWorkspaceUpdated(Option<String>),
-    AerospaceModeUpdated(Option<String>),
-    AerospaceFocusedAppsUpdated(Vec<String>),
-    NowPlayingUpdated(Option<widgets::now_playing::Data>),
+    Wm(WmMessage),
+    NowPlaying(widgets::now_playing::Message),
+    Perf(widgets::perf::Message),
+    Network(widgets::network::Message),
+    Battery(widgets::battery::Message),
+    Clock(widgets::clock::Message),
 }
 
 fn boot() -> (BarApp, Task<Message>) {
     let displays = platform::displays();
-    let mut tasks: Vec<Task<Message>> = displays.into_iter().map(open_display_window).collect();
-    tasks.push(Task::perform(
-        widgets::aerospace::load_data(),
-        Message::AerospaceUpdated,
-    ));
-    tasks.push(Task::perform(
-        widgets::now_playing::load_data(),
-        Message::NowPlayingUpdated,
-    ));
+    let (wm, wm_task) = wm::ActiveWm::new();
+    let (now_playing, now_playing_task) = widgets::now_playing::State::new();
+    let (perf, _) = widgets::perf::State::new();
+    let (network, _) = widgets::network::State::new();
+    let (battery, _) = widgets::battery::State::new();
+    let (clock, _) = widgets::clock::State::new();
 
-    (BarApp::default(), Task::batch(tasks))
+    let mut tasks: Vec<Task<Message>> = displays.into_iter().map(open_display_window).collect();
+    tasks.push(wm_task.map(Message::Wm));
+    tasks.push(now_playing_task.map(Message::NowPlaying));
+
+    let state = BarApp {
+        windows: BTreeMap::new(),
+        dock_hidden: false,
+        wm,
+        now_playing,
+        perf,
+        network,
+        battery,
+        clock,
+    };
+
+    (state, Task::batch(tasks))
 }
 
 fn update(state: &mut BarApp, message: Message) -> Task<Message> {
@@ -136,7 +73,6 @@ fn update(state: &mut BarApp, message: Message) -> Task<Message> {
             if !state.windows.contains_key(&id) {
                 return Task::none();
             }
-
             match event {
                 window::Event::Opened { .. } => {
                     if !state.dock_hidden {
@@ -149,87 +85,24 @@ fn update(state: &mut BarApp, message: Message) -> Task<Message> {
                 _ => Task::none(),
             }
         }
-        Message::FastTick => Task::batch(vec![
-            Task::perform(
-                widgets::aerospace::load_focused_workspace_from_bridge(),
-                Message::AerospaceFocusedWorkspaceUpdated,
-            ),
-            Task::perform(
-                widgets::aerospace::load_mode_from_bridge(),
-                Message::AerospaceModeUpdated,
-            ),
-        ]),
-        Message::AerospaceFallbackTick => Task::batch(vec![
-            Task::perform(widgets::aerospace::load_data(), Message::AerospaceUpdated),
-            Task::perform(
-                widgets::aerospace::load_apps_for_workspace(state.aerospace.focused_workspace()),
-                Message::AerospaceFocusedAppsUpdated,
-            ),
-        ]),
-        Message::MediumTick(now) => {
-            state.perf.refresh(now);
-            state.network.refresh(now);
-            Task::perform(
-                widgets::now_playing::load_data(),
-                Message::NowPlayingUpdated,
-            )
-        }
-        Message::SlowTick => {
-            state.battery.refresh();
-            Task::none()
-        }
-        Message::ClockTick => {
-            state.clock.refresh();
-            Task::none()
-        }
-        Message::AerospaceUpdated(data) => {
-            let focused = data.focused_workspace.clone();
-            state.aerospace.apply(data);
-            if let Some(workspace) = focused {
-                Task::perform(
-                    widgets::aerospace::load_apps_for_workspace(Some(workspace)),
-                    Message::AerospaceFocusedAppsUpdated,
-                )
-            } else {
-                Task::none()
-            }
-        }
-        Message::AerospaceFocusedWorkspaceUpdated(focused_workspace) => {
-            if state
-                .aerospace
-                .set_focused_workspace(focused_workspace.clone())
-            {
-                Task::perform(
-                    widgets::aerospace::load_apps_for_workspace(focused_workspace),
-                    Message::AerospaceFocusedAppsUpdated,
-                )
-            } else {
-                Task::none()
-            }
-        }
-        Message::AerospaceModeUpdated(mode) => {
-            state.aerospace.set_mode(mode);
-            Task::none()
-        }
-        Message::AerospaceFocusedAppsUpdated(apps) => {
-            state.aerospace.set_apps_in_focused_workspace(apps);
-            Task::none()
-        }
-        Message::NowPlayingUpdated(data) => {
-            state.now_playing.apply(data);
-            Task::none()
-        }
+        Message::Wm(m) => state.wm.update(m).map(Message::Wm),
+        Message::NowPlaying(m) => state.now_playing.update(m).map(Message::NowPlaying),
+        Message::Perf(m) => state.perf.update(m).map(Message::Perf),
+        Message::Network(m) => state.network.update(m).map(Message::Network),
+        Message::Battery(m) => state.battery.update(m).map(Message::Battery),
+        Message::Clock(m) => state.clock.update(m).map(Message::Clock),
     }
 }
 
-fn subscription(_state: &BarApp) -> Subscription<Message> {
+fn subscription(state: &BarApp) -> Subscription<Message> {
     Subscription::batch(vec![
         window::events().map(|(id, event)| Message::WindowEvent(id, event)),
-        time::every(Duration::from_millis(500)).map(|_| Message::FastTick),
-        time::every(Duration::from_secs(10)).map(|_| Message::AerospaceFallbackTick),
-        time::every(Duration::from_secs(2)).map(Message::MediumTick),
-        time::every(Duration::from_secs(30)).map(|_| Message::SlowTick),
-        time::every(Duration::from_secs(1)).map(|_| Message::ClockTick),
+        state.wm.subscription().map(Message::Wm),
+        state.now_playing.subscription().map(Message::NowPlaying),
+        state.perf.subscription().map(Message::Perf),
+        state.network.subscription().map(Message::Network),
+        state.battery.subscription().map(Message::Battery),
+        state.clock.subscription().map(Message::Clock),
     ])
 }
 
@@ -239,25 +112,24 @@ fn view<'a>(state: &'a BarApp, id: window::Id) -> Element<'a, Message> {
             .height(Length::Fill)
             .width(Length::Fill)
             .padding([4.0, 12.0])
-            .style(|_| bar_container_style())
+            .style(|_| style::bar_container_style())
             .into();
     }
 
     let left = row![
-        state.aerospace.view_mode(),
-        state.aerospace.view_workspaces(),
-        state.aerospace.view_apps(),
+        state.wm.view_mode().map(Message::Wm),
+        state.wm.view_workspaces().map(Message::Wm),
     ]
     .spacing(8)
     .height(Length::Fill)
     .align_y(iced::Alignment::Center);
 
     let right = row![
-        state.now_playing.view(),
-        state.perf.view_cpu_ram(),
-        state.network.view(),
-        state.battery.view(),
-        state.clock.view(),
+        state.now_playing.view().map(Message::NowPlaying),
+        state.perf.view_cpu_ram().map(Message::Perf),
+        state.network.view().map(Message::Network),
+        state.battery.view().map(Message::Battery),
+        state.clock.view().map(Message::Clock),
     ]
     .spacing(4)
     .height(Length::Fill)
@@ -272,7 +144,7 @@ fn view<'a>(state: &'a BarApp, id: window::Id) -> Element<'a, Message> {
     .height(Length::Fill)
     .width(Length::Fill)
     .padding([2.0, 10.0])
-    .style(|_| bar_container_style())
+    .style(|_| style::bar_container_style())
     .into()
 }
 
@@ -314,7 +186,7 @@ fn main() -> iced::Result {
             background_color: Color::TRANSPARENT,
             text_color: crate::hex!(0x000000),
         })
-        .default_font(FONT_TEXT)
+        .default_font(style::FONT_TEXT)
         .font(iced_fonts::LUCIDE_FONT_BYTES)
         // TODO: Build a CI for updating this font automatically
         // https://github.com/kvndrsslr/sketchybar-app-font/releases

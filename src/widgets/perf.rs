@@ -1,7 +1,7 @@
 use iced::widget::{button, column, row, text};
-use iced::{Alignment, Element};
+use iced::{Alignment, Element, Subscription, Task};
 use iced_fonts::lucide;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use sysinfo::System;
 
 #[derive(Debug)]
@@ -10,6 +10,11 @@ pub struct State {
     cpu_percent: f32,
     mem_used: u64,
     mem_total: u64,
+}
+
+#[derive(Debug, Clone)]
+pub enum Message {
+    Tick(Instant),
 }
 
 impl Default for State {
@@ -26,7 +31,22 @@ impl Default for State {
 }
 
 impl State {
-    pub fn refresh(&mut self, _now: Instant) {
+    pub fn new() -> (Self, Task<Message>) {
+        (Self::default(), Task::none())
+    }
+
+    pub fn update(&mut self, message: Message) -> Task<Message> {
+        match message {
+            Message::Tick(now) => self.refresh(now),
+        }
+        Task::none()
+    }
+
+    pub fn subscription(&self) -> Subscription<Message> {
+        iced::time::every(Duration::from_secs(2)).map(Message::Tick)
+    }
+
+    fn refresh(&mut self, _now: Instant) {
         self.system.refresh_cpu_all();
         self.cpu_percent = self.system.global_cpu_usage();
 
@@ -34,7 +54,7 @@ impl State {
         self.mem_used = self.system.used_memory();
     }
 
-    pub fn view_cpu_ram<'a>(&self) -> Element<'a, crate::Message> {
+    pub fn view_cpu_ram<'a>(&self) -> Element<'a, Message> {
         let format_mem = |bytes: u64| {
             let (value, unit) = format_number(bytes as f64);
             format!("{:>2.1}{}", value, unit)
@@ -62,7 +82,7 @@ impl State {
 
         button(data)
             .padding([2, 6])
-            .style(crate::widget_container_style)
+            .style(crate::style::widget_container_style)
             .into()
     }
 }

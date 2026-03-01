@@ -1,6 +1,8 @@
-use crate::FONT_ICON;
-use iced::Element;
-use iced::widget::{Row, button, container, text};
+use super::Wm;
+use crate::style::FONT_ICON;
+use iced::widget::{Row, button, text};
+use iced::{Element, Subscription, Task};
+use std::time::Duration;
 
 include!(concat!(env!("OUT_DIR"), "/icon_map.rs"));
 
@@ -26,25 +28,30 @@ impl Default for Data {
     }
 }
 
+#[derive(Debug, Clone)]
+pub enum Message {
+    FastTick,
+    FallbackTick,
+    Updated(Data),
+    FocusedWorkspaceUpdated(Option<String>),
+    ModeUpdated(Option<String>),
+    FocusedAppsUpdated(Vec<String>),
+}
+
 #[derive(Debug, Clone, Default)]
-pub struct State {
+pub struct AerospaceWm {
     data: Data,
 }
 
-impl State {
-    pub fn apply(&mut self, data: Data) {
-        self.data = data;
-    }
-
-    pub fn focused_workspace(&self) -> Option<String> {
+impl AerospaceWm {
+    fn focused_workspace(&self) -> Option<String> {
         self.data.focused_workspace.clone()
     }
 
-    pub fn set_focused_workspace(&mut self, focused_workspace: Option<String>) -> bool {
+    fn set_focused_workspace(&mut self, focused_workspace: Option<String>) -> bool {
         if self.data.focused_workspace == focused_workspace {
             return false;
         }
-
         self.data.focused_workspace = focused_workspace.clone();
         if let Some(workspace) = focused_workspace {
             if !self.data.used_workspaces.iter().any(|ws| ws == &workspace) {
@@ -55,79 +62,124 @@ impl State {
         }
         true
     }
+}
 
-    pub fn set_apps_in_focused_workspace(&mut self, apps: Vec<String>) {
-        self.data.apps_in_focused_workspace = apps;
+impl Wm for AerospaceWm {
+    type Message = Message;
+
+    fn new() -> (Self, Task<Self::Message>) {
+        (
+            Self::default(),
+            Task::perform(load_data(), Message::Updated),
+        )
     }
 
-    pub fn set_mode(&mut self, mode: Option<String>) {
-        if let Some(mode) = mode {
-            self.data.mode = mode;
+    fn update(&mut self, message: Self::Message) -> Task<Self::Message> {
+        match message {
+            Message::FastTick => Task::batch(vec![
+                Task::perform(
+                    load_focused_workspace_from_bridge(),
+                    Message::FocusedWorkspaceUpdated,
+                ),
+                Task::perform(load_mode_from_bridge(), Message::ModeUpdated),
+            ]),
+            Message::FallbackTick => Task::batch(vec![
+                Task::perform(load_data(), Message::Updated),
+                Task::perform(
+                    load_apps_for_workspace(self.focused_workspace()),
+                    Message::FocusedAppsUpdated,
+                ),
+            ]),
+            Message::Updated(data) => {
+                let focused = data.focused_workspace.clone();
+                self.data = data;
+                if let Some(workspace) = focused {
+                    Task::perform(
+                        load_apps_for_workspace(Some(workspace)),
+                        Message::FocusedAppsUpdated,
+                    )
+                } else {
+                    Task::none()
+                }
+            }
+            Message::FocusedWorkspaceUpdated(focused_workspace) => {
+                if self.set_focused_workspace(focused_workspace.clone()) {
+                    Task::perform(
+                        load_apps_for_workspace(focused_workspace),
+                        Message::FocusedAppsUpdated,
+                    )
+                } else {
+                    Task::none()
+                }
+            }
+            Message::ModeUpdated(mode) => {
+                if let Some(mode) = mode {
+                    self.data.mode = mode;
+                }
+                Task::none()
+            }
+            Message::FocusedAppsUpdated(apps) => {
+                self.data.apps_in_focused_workspace = apps;
+                Task::none()
+            }
         }
     }
 
-    pub fn view_mode<'a>(&'a self) -> Element<'a, crate::Message> {
+    fn subscription(&self) -> Subscription<Self::Message> {
+        Subscription::batch(vec![
+            iced::time::every(Duration::from_millis(500)).map(|_| Message::FastTick),
+            iced::time::every(Duration::from_secs(10)).map(|_| Message::FallbackTick),
+        ])
+    }
+
+    fn view_mode(&self) -> Element<'_, Self::Message> {
         button(text(format!("{}:", self.data.mode)).color(crate::hex!(0x000000)))
             .padding([1.0, 6.0])
-            .style(crate::widget_container_style)
+            .style(crate::style::widget_container_style)
             .into()
     }
 
-    pub fn view_workspaces<'a>(&'a self) -> Element<'a, crate::Message> {
+    fn view_workspaces(&self) -> Element<'_, Self::Message> {
         if self.data.used_workspaces.is_empty() {
             return text(String::from("--")).color(crate::hex!(0x000000)).into();
         }
-
         let focused = self.data.focused_workspace.as_deref();
         let row = self.data.used_workspaces.iter().fold(
             Row::new().spacing(4).align_y(iced::Alignment::Center),
             |row, ws| {
                 let active = Some(ws.as_str()) == focused;
                 let style = if active {
-                    crate::focused_widget_container_style
+                    crate::style::focused_widget_container_style
                 } else {
-                    crate::widget_container_style
+                    crate::style::widget_container_style
                 };
-                let badge = button(text(ws).color(crate::hex!(0x000000)))
-                    .padding([1.0, 6.0])
-                    .style(style);
+                let ws_text: Element<'_, Message> =
+                    text(ws).color(crate::hex!(0x000000)).into();
+                let mut content =
+                    Row::new().spacing(4).align_y(iced::Alignment::Center).push(ws_text);
+                if active {
+                    for app in &self.data.apps_in_focused_workspace {
+                        let icon = app_name_to_icon(app);
+                        let app_el: Element<'_, Message> = if icon == ":default:" {
+                            text(app.as_str())
+                                .size(14)
+                                .color(crate::hex!(0x000000))
+                                .into()
+                        } else {
+                            text(icon)
+                                .font(FONT_ICON)
+                                .size(18)
+                                .color(crate::hex!(0x000000))
+                                .into()
+                        };
+                        content = content.push(app_el);
+                    }
+                }
+                let badge = button(content).padding([1.0, 6.0]).style(style);
                 row.push(badge)
             },
         );
-
         row.into()
-    }
-
-    pub fn view_apps<'a>(&'a self) -> Element<'a, crate::Message> {
-        if self.data.apps_in_focused_workspace.is_empty() {
-            return text(String::from("")).into();
-        }
-
-        let row = self.data.apps_in_focused_workspace.iter().fold(
-            Row::new().spacing(4).align_y(iced::Alignment::Center),
-            |row, app| {
-                let icon = app_name_to_icon(app);
-                let name_style = (14, crate::hex!(0x000000));
-                let content: Element<'_, crate::Message> = if icon == ":default:" {
-                    text(app.as_str())
-                        .size(name_style.0)
-                        .color(name_style.1)
-                        .into()
-                } else {
-                    text(icon)
-                        .font(FONT_ICON)
-                        .size(18)
-                        .color(crate::hex!(0x000000))
-                        .into()
-                };
-                row.push(content)
-            },
-        );
-
-        container(row)
-            .padding([1.0, 6.0])
-            .style(|_| crate::widget_container_style_container())
-            .into()
     }
 }
 
