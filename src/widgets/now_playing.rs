@@ -27,7 +27,7 @@ impl State {
         } else {
             format!("{} - {}", current.title, current.artist)
         };
-        text(label).into()
+        text(label).color(crate::hex!(0x000000)).into()
     }
 }
 

@@ -1,6 +1,6 @@
-use iced::widget::{text, Row};
-use iced::Element;
 use crate::FONT_ICON;
+use iced::Element;
+use iced::widget::{Row, button, text};
 
 include!(concat!(env!("OUT_DIR"), "/icon_map.rs"));
 
@@ -63,27 +63,28 @@ impl State {
     }
 
     pub fn view_mode<'a>(&'a self) -> Element<'a, crate::Message> {
-        text(format!("[{}]", self.data.mode)).into()
+        button(text(format!("{}:", self.data.mode)).color(crate::hex!(0x000000)))
+            .padding([1.0, 6.0])
+            .style(crate::widget_container_style)
+            .into()
     }
 
     pub fn view_workspaces<'a>(&'a self) -> Element<'a, crate::Message> {
         if self.data.used_workspaces.is_empty() {
-            return text(String::from("[]")).into();
+            return text(String::from("--")).color(crate::hex!(0x000000)).into();
         }
 
         let focused = self.data.focused_workspace.as_deref();
-        let row = self
-            .data
-            .used_workspaces
-            .iter()
-            .fold(Row::new().spacing(4), |row, ws| {
-                let badge = if Some(ws.as_str()) == focused {
-                    format!("({ws})")
-                } else {
-                    format!("[{ws}]")
-                };
-                row.push(text(badge))
-            });
+        let row = self.data.used_workspaces.iter().fold(
+            Row::new().spacing(4).align_y(iced::Alignment::Center),
+            |row, ws| {
+                let _active = Some(ws.as_str()) == focused;
+                let badge = button(text(ws).color(crate::hex!(0x000000)))
+                    .padding([1.0, 6.0])
+                    .style(crate::widget_container_style);
+                row.push(badge)
+            },
+        );
 
         row.into()
     }
@@ -93,14 +94,18 @@ impl State {
             return text(String::from("")).into();
         }
 
-        let row = self
-            .data
-            .apps_in_focused_workspace
-            .iter()
-            .fold(Row::new().spacing(4), |row, app| {
+        let row = self.data.apps_in_focused_workspace.iter().fold(
+            Row::new().spacing(4).align_y(iced::Alignment::Center),
+            |row, app| {
                 let icon = app_name_to_icon(app);
-                row.push(text(icon).font(FONT_ICON).size(18))
-            });
+                row.push(
+                    text(icon)
+                        .font(FONT_ICON)
+                        .size(18)
+                        .color(crate::hex!(0x000000)),
+                )
+            },
+        );
 
         row.into()
     }
