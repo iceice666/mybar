@@ -1,25 +1,62 @@
-use iced::widget::{container, text};
-use iced::{window, Element, Length, Point, Size, Subscription, Task};
+use iced::widget::{container, row, Space};
+use iced::{time, window, Element, Length, Point, Size, Subscription, Task};
 use std::collections::BTreeMap;
+use std::time::{Duration, Instant};
 
 mod platform;
+mod widgets;
 
 const BAR_HEIGHT: f32 = 32.0;
 
-#[derive(Debug, Default)]
 struct BarApp {
     windows: BTreeMap<window::Id, platform::DisplaySpec>,
+    aerospace: widgets::aerospace::State,
+    now_playing: widgets::now_playing::State,
+    perf: widgets::perf::State,
+    battery: widgets::battery::State,
+    clock: widgets::clock::State,
+}
+
+impl Default for BarApp {
+    fn default() -> Self {
+        Self {
+            windows: BTreeMap::new(),
+            aerospace: widgets::aerospace::State::default(),
+            now_playing: widgets::now_playing::State::default(),
+            perf: widgets::perf::State::default(),
+            battery: widgets::battery::State::default(),
+            clock: widgets::clock::State::default(),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
 enum Message {
     WindowCreated(window::Id, platform::DisplaySpec),
     WindowEvent(window::Id, window::Event),
+    FastTick,
+    AerospaceFallbackTick,
+    MediumTick(Instant),
+    SlowTick,
+    ClockTick,
+    AerospaceUpdated(widgets::aerospace::Data),
+    AerospaceFocusedWorkspaceUpdated(Option<String>),
+    AerospaceModeUpdated(Option<String>),
+    AerospaceFocusedAppsUpdated(Vec<String>),
+    NowPlayingUpdated(Option<widgets::now_playing::Data>),
 }
 
 fn boot() -> (BarApp, Task<Message>) {
     let displays = platform::displays();
-    let tasks = displays.into_iter().map(open_display_window);
+    let mut tasks: Vec<Task<Message>> = displays.into_iter().map(open_display_window).collect();
+    tasks.push(Task::perform(
+        widgets::aerospace::load_data(),
+        Message::AerospaceUpdated,
+    ));
+    tasks.push(Task::perform(
+        widgets::now_playing::load_data(),
+        Message::NowPlayingUpdated,
+    ));
 
     (BarApp::default(), Task::batch(tasks))
 }
@@ -42,20 +79,100 @@ fn update(state: &mut BarApp, message: Message) -> Task<Message> {
                 _ => Task::none(),
             }
         }
+        Message::FastTick => Task::batch(vec![
+            Task::perform(
+                widgets::aerospace::load_focused_workspace_from_bridge(),
+                Message::AerospaceFocusedWorkspaceUpdated,
+            ),
+            Task::perform(
+                widgets::aerospace::load_mode_from_bridge(),
+                Message::AerospaceModeUpdated,
+            ),
+        ]),
+        Message::AerospaceFallbackTick => Task::perform(
+            widgets::aerospace::load_data(),
+            Message::AerospaceUpdated,
+        ),
+        Message::MediumTick(now) => {
+            state.perf.refresh(now);
+            Task::perform(
+                widgets::now_playing::load_data(),
+                Message::NowPlayingUpdated,
+            )
+        }
+        Message::SlowTick => {
+            state.battery.refresh();
+            Task::none()
+        }
+        Message::ClockTick => {
+            state.clock.refresh();
+            Task::none()
+        }
+        Message::AerospaceUpdated(data) => {
+            state.aerospace.apply(data);
+            Task::none()
+        }
+        Message::AerospaceFocusedWorkspaceUpdated(focused_workspace) => {
+            if state.aerospace.set_focused_workspace(focused_workspace.clone()) {
+                Task::perform(
+                    widgets::aerospace::load_apps_for_workspace(focused_workspace),
+                    Message::AerospaceFocusedAppsUpdated,
+                )
+            } else {
+                Task::none()
+            }
+        }
+        Message::AerospaceModeUpdated(mode) => {
+            state.aerospace.set_mode(mode);
+            Task::none()
+        }
+        Message::AerospaceFocusedAppsUpdated(apps) => {
+            state.aerospace.set_apps_in_focused_workspace(apps);
+            Task::none()
+        }
+        Message::NowPlayingUpdated(data) => {
+            state.now_playing.apply(data);
+            Task::none()
+        }
     }
 }
 
 fn subscription(_state: &BarApp) -> Subscription<Message> {
-    window::events().map(|(id, event)| Message::WindowEvent(id, event))
+    Subscription::batch(vec![
+        window::events().map(|(id, event)| Message::WindowEvent(id, event)),
+        time::every(Duration::from_millis(500)).map(|_| Message::FastTick),
+        time::every(Duration::from_secs(10)).map(|_| Message::AerospaceFallbackTick),
+        time::every(Duration::from_secs(2)).map(Message::MediumTick),
+        time::every(Duration::from_secs(30)).map(|_| Message::SlowTick),
+        time::every(Duration::from_secs(1)).map(|_| Message::ClockTick),
+    ])
 }
 
 fn view<'a>(state: &'a BarApp, id: window::Id) -> Element<'a, Message> {
-    let label = match state.windows.get(&id) {
-        Some(display) => format!("mybar test | display {}", display.index + 1),
-        None => String::from("mybar test | initializing"),
-    };
+    if !state.windows.contains_key(&id) {
+        return container(row![])
+            .height(Length::Fill)
+            .width(Length::Fill)
+            .padding([0, 12])
+            .into();
+    }
 
-    container(text(label))
+    let left = row![
+        state.aerospace.view_mode(),
+        state.aerospace.view_workspaces(),
+        state.aerospace.view_apps(),
+    ]
+    .spacing(8);
+
+    let right = row![
+        state.now_playing.view(),
+        state.perf.view(),
+        state.battery.view(),
+        state.clock.view(),
+    ]
+    .spacing(12);
+
+    container(row![left, Space::new().width(Length::Fill), right])
         .height(Length::Fill)
         .width(Length::Fill)
         .padding([0, 12])
