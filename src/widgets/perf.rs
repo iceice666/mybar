@@ -1,5 +1,6 @@
-use iced::widget::{column, row, text};
 use iced::Element;
+use iced::widget::{column, row, text};
+use iced_fonts::lucide;
 use std::time::Instant;
 use sysinfo::{Networks, System};
 
@@ -8,22 +9,28 @@ pub struct State {
     system: System,
     networks: Networks,
     cpu_percent: f32,
-    mem_percent: f32,
-    net_up_per_sec: u64,
-    net_down_per_sec: u64,
-    last_sample: Option<(Instant, u64, u64)>,
+    mem_used: u64,
+    mem_total: u64,
+    net_last_refresh: Instant,
+    net_upload: f64,
+    net_download: f64,
 }
 
 impl Default for State {
     fn default() -> Self {
+        let system = System::new_all();
+        let mem_total = system.total_memory();
+        let mut networks = Networks::new_with_refreshed_list();
+        let (net_upload, net_download) = get_net_state(&mut networks);
         Self {
-            system: System::new_all(),
+            system,
             networks: Networks::new_with_refreshed_list(),
             cpu_percent: 0.0,
-            mem_percent: 0.0,
-            net_up_per_sec: 0,
-            net_down_per_sec: 0,
-            last_sample: None,
+            mem_used: 0,
+            mem_total,
+            net_last_refresh: Instant::now(),
+            net_download: net_download as f64,
+            net_upload: net_upload as f64,
         }
     }
 }
@@ -31,65 +38,93 @@ impl Default for State {
 impl State {
     pub fn refresh(&mut self, now: Instant) {
         self.system.refresh_cpu_all();
-        self.system.refresh_memory();
-
         self.cpu_percent = self.system.global_cpu_usage();
-        let total_mem = self.system.total_memory();
-        self.mem_percent = if total_mem == 0 {
-            0.0
-        } else {
-            (self.system.used_memory() as f32 / total_mem as f32) * 100.0
-        };
+
+        self.system.refresh_memory();
+        self.mem_used = self.system.used_memory();
 
         self.networks.refresh(true);
-        let (total_received, total_transmitted) = self
-            .networks
-            .iter()
-            .fold((0_u64, 0_u64), |(received, transmitted), (_, network)| {
-                (
-                    received.saturating_add(network.total_received()),
-                    transmitted.saturating_add(network.total_transmitted()),
-                )
-            });
+        let elapsed = (now - self.net_last_refresh)
+            .as_secs_f64()
+            .max(f64::EPSILON);
+        let (last_rx, last_tx) = get_net_state(&mut self.networks);
+        self.net_last_refresh = now;
 
-        if let Some((last_when, last_rx, last_tx)) = self.last_sample {
-            let elapsed = now.saturating_duration_since(last_when).as_secs_f64();
-            if elapsed > 0.0 {
-                self.net_down_per_sec = ((total_received.saturating_sub(last_rx)) as f64 / elapsed)
-                    .round() as u64;
-                self.net_up_per_sec = ((total_transmitted.saturating_sub(last_tx)) as f64 / elapsed)
-                    .round() as u64;
-            }
-        }
-        self.last_sample = Some((now, total_received, total_transmitted));
+        self.net_download = ewma(self.net_download, last_rx as f64 / elapsed, elapsed);
+        self.net_upload = ewma(self.net_upload, last_tx as f64 / elapsed, elapsed);
     }
 
     pub fn view<'a>(&self) -> Element<'a, crate::Message> {
+        let format_net = |bytes: f64| {
+            let (value, unit) = format_number(bytes);
+            format!("{:>6.1}{}B/s", value, unit)
+        };
+
         let net = column![
-            text(format!("U {}", format_rate(self.net_up_per_sec))),
-            text(format!("D {}", format_rate(self.net_down_per_sec))),
+            row![
+                lucide::arrow_big_up().size(11),
+                text(format_net(self.net_upload)).size(11),
+            ]
+            .spacing(3),
+            row![
+                lucide::arrow_big_down().size(11),
+                text(format_net(self.net_download)).size(11),
+            ]
+            .spacing(3),
         ]
         .spacing(0);
 
-        row![
-            text(format!("PERF | CPU {:>3.0}% MEM {:>3.0}%", self.cpu_percent, self.mem_percent)),
-            net
+        let format_mem = |bytes: u64| {
+            let (value, unit) = format_number(bytes as f64);
+            format!("{:>2.1}{}B", value, unit)
+        };
+
+        let perf = row![
+            lucide::cpu().size(14),
+            text(format!("{:>3.0}%", self.cpu_percent)),
+            lucide::memory_stick().size(14),
+            text(format!(
+                "{}/{}",
+                format_mem(self.mem_used),
+                format_mem(self.mem_total)
+            )),
         ]
-        .spacing(8)
-        .into()
+        .spacing(4)
+        .align_y(iced::Alignment::Center);
+
+        row![perf, net]
+            .spacing(8)
+            .align_y(iced::Alignment::Center)
+            .into()
     }
 }
 
-fn format_rate(bytes_per_second: u64) -> String {
-    const KB: f64 = 1024.0;
-    const MB: f64 = 1024.0 * 1024.0;
+fn format_number(bytes: f64) -> (f64, char) {
+    let mut value = bytes.max(0.0);
+    let mut unit = ' ';
 
-    let bps = bytes_per_second as f64;
-    if bps >= MB {
-        format!("{:.1} MB/s", bps / MB)
-    } else if bps >= KB {
-        format!("{:.1} KB/s", bps / KB)
-    } else {
-        format!("{bytes_per_second} B/s")
+    for candidate in ['K', 'M', 'G', 'T'] {
+        if value < 1024.0 {
+            break;
+        }
+        value /= 1024.0;
+        unit = candidate;
     }
+
+    (value, unit)
+}
+
+fn get_net_state(networks: &mut Networks) -> (u64, u64) {
+    networks.iter().fold((0_u64, 0_u64), |(rx, tx), (_, data)| {
+        let rx = rx.saturating_add(data.received());
+        let tx = tx.saturating_add(data.transmitted());
+
+        (rx, tx)
+    })
+}
+
+const NET_EWMA_TAU_SECS: f64 = 4.0;
+fn ewma(history: f64, sample: f64, elapsed: f64) -> f64 {
+    let history_weight = (-elapsed / NET_EWMA_TAU_SECS).exp();
+    sample + (history - sample) * history_weight
 }

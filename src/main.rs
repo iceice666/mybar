@@ -1,12 +1,20 @@
-use iced::widget::{container, row, Space};
-use iced::{time, window, Element, Length, Point, Size, Subscription, Task};
+use iced::widget::{Space, container, row};
+use iced::{Element, Font, Length, Point, Size, Subscription, Task, time, window};
 use std::collections::BTreeMap;
 use std::time::{Duration, Instant};
 
 mod platform;
 mod widgets;
 
-const BAR_HEIGHT: f32 = 32.0;
+pub const FONT_TEXT: Font = Font {
+    family: iced::font::Family::Name("Cascadia Code NF"),
+    ..Font::DEFAULT
+};
+
+pub const FONT_ICON: Font = Font {
+    family: iced::font::Family::Name("sketchybar-app-font"),
+    ..Font::DEFAULT
+};
 
 struct BarApp {
     windows: BTreeMap<window::Id, platform::DisplaySpec>,
@@ -73,9 +81,7 @@ fn update(state: &mut BarApp, message: Message) -> Task<Message> {
             }
 
             match event {
-                window::Event::Opened { .. } | window::Event::Resized(_) => {
-                    reconcile_window(id)
-                }
+                window::Event::Opened { .. } | window::Event::Resized(_) => reconcile_window(id),
                 _ => Task::none(),
             }
         }
@@ -89,10 +95,9 @@ fn update(state: &mut BarApp, message: Message) -> Task<Message> {
                 Message::AerospaceModeUpdated,
             ),
         ]),
-        Message::AerospaceFallbackTick => Task::perform(
-            widgets::aerospace::load_data(),
-            Message::AerospaceUpdated,
-        ),
+        Message::AerospaceFallbackTick => {
+            Task::perform(widgets::aerospace::load_data(), Message::AerospaceUpdated)
+        }
         Message::MediumTick(now) => {
             state.perf.refresh(now);
             Task::perform(
@@ -113,7 +118,10 @@ fn update(state: &mut BarApp, message: Message) -> Task<Message> {
             Task::none()
         }
         Message::AerospaceFocusedWorkspaceUpdated(focused_workspace) => {
-            if state.aerospace.set_focused_workspace(focused_workspace.clone()) {
+            if state
+                .aerospace
+                .set_focused_workspace(focused_workspace.clone())
+            {
                 Task::perform(
                     widgets::aerospace::load_apps_for_workspace(focused_workspace),
                     Message::AerospaceFocusedAppsUpdated,
@@ -153,7 +161,7 @@ fn view<'a>(state: &'a BarApp, id: window::Id) -> Element<'a, Message> {
         return container(row![])
             .height(Length::Fill)
             .width(Length::Fill)
-            .padding([0, 12])
+            .padding([4.0, 12.0])
             .into();
     }
 
@@ -175,7 +183,7 @@ fn view<'a>(state: &'a BarApp, id: window::Id) -> Element<'a, Message> {
     container(row![left, Space::new().width(Length::Fill), right])
         .height(Length::Fill)
         .width(Length::Fill)
-        .padding([0, 12])
+        .padding([4.0, 12.0])
         .into()
 }
 
@@ -185,10 +193,10 @@ fn title(_state: &BarApp, _id: window::Id) -> String {
 
 fn open_display_window(display: platform::DisplaySpec) -> Task<Message> {
     let settings = window::Settings {
-        size: Size::new(display.width, BAR_HEIGHT),
+        size: Size::new(display.width, 32.0),
         position: window::Position::Specific(Point::new(display.x, 0.0)),
-        min_size: Some(Size::new(display.width, BAR_HEIGHT)),
-        max_size: Some(Size::new(display.width, BAR_HEIGHT)),
+        min_size: Some(Size::new(display.width, 32.0)),
+        max_size: Some(Size::new(display.width, 32.0)),
         resizable: false,
         decorations: false,
         level: window::Level::AlwaysOnTop,
@@ -202,7 +210,7 @@ fn open_display_window(display: platform::DisplaySpec) -> Task<Message> {
 
 fn reconcile_window(id: window::Id) -> Task<Message> {
     window::run(id, move |window| {
-        let _ = platform::configure_bar_window(window, BAR_HEIGHT);
+        let _ = platform::configure_bar_window(window, 32.0);
     })
     .discard()
 }
@@ -211,5 +219,10 @@ fn main() -> iced::Result {
     iced::daemon(boot, update, view)
         .subscription(subscription)
         .title(title)
+        .default_font(FONT_TEXT)
+        .font(iced_fonts::LUCIDE_FONT_BYTES)
+        // TODO: Build a CI for updating this font automatically
+        // https://github.com/kvndrsslr/sketchybar-app-font/releases
+        .font(include_bytes!("../assets/sketchybar-app-font.ttf").as_slice())
         .run()
 }

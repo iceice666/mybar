@@ -1,6 +1,6 @@
 use battery::{Manager, State as BatteryState};
-use iced::widget::text;
 use iced::Element;
+use iced::widget::{row, text};
 
 #[derive(Debug)]
 pub struct State {
@@ -51,7 +51,18 @@ impl State {
             return text(String::new()).into();
         };
 
-        let indicator = if self.charging { "+" } else { "" };
-        text(format!("BAT {percent}%{indicator}")).into()
+        let icon = match percent {
+            100.. => text("\u{F0079}"),
+            75..100 => text("\u{F007A}"),
+            50..75 => text("\u{F007B}"),
+            25..50 => text("\u{F007C}"),
+            0..25 => text("\u{F007D}"),
+        }
+        .size(14);
+
+        row![icon, text(format!("{percent}%"))]
+            .spacing(4)
+            .align_y(iced::Alignment::Center)
+            .into()
     }
 }

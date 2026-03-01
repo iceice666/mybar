@@ -1,5 +1,8 @@
 use iced::widget::{text, Row};
 use iced::Element;
+use crate::FONT_ICON;
+
+include!(concat!(env!("OUT_DIR"), "/icon_map.rs"));
 
 const FOCUSED_WORKSPACE_BRIDGE_PATH: &str = "/tmp/mybar-aerospace-focused-workspace";
 const MODE_BRIDGE_PATH: &str = "/tmp/aerospace-mode";
@@ -90,8 +93,16 @@ impl State {
             return text(String::from("")).into();
         }
 
-        let label = self.data.apps_in_focused_workspace.join(", ");
-        text(label).into()
+        let row = self
+            .data
+            .apps_in_focused_workspace
+            .iter()
+            .fold(Row::new().spacing(4), |row, app| {
+                let icon = app_name_to_icon(app);
+                row.push(text(icon).font(FONT_ICON).size(18))
+            });
+
+        row.into()
     }
 }
 
