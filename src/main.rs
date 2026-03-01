@@ -1,10 +1,39 @@
-use iced::widget::{Space, container, row};
-use iced::{Element, Font, Length, Point, Size, Subscription, Task, time, window};
+use iced::widget::{Space, button, container, row};
+use iced::{
+    Background, Border, Color, Element, Font, Length, Point, Size, Subscription, Task, Theme, time,
+    window,
+};
 use std::collections::BTreeMap;
 use std::time::{Duration, Instant};
 
 mod platform;
+mod theme;
 mod widgets;
+
+const BAR_HEIGHT: f32 = 36.0;
+
+/// All widgets: bg #ffffff66, fg #000000
+pub fn widget_container_style(_theme: &Theme, _status: button::Status) -> button::Style {
+    button::Style {
+        background: Background::Color(crate::hex!(0xffffff66)).into(),
+        border: Border {
+            color: crate::hex!(0x00000022),
+            width: 1.0,
+            radius: 6.0.into(),
+        },
+        ..Default::default()
+    }
+}
+
+fn bar_container_style() -> container::Style {
+    container::Style::default()
+        .background(Background::Color(Color::TRANSPARENT))
+        .border(Border {
+            color: crate::hex!(0x00000022),
+            width: 1.0,
+            radius: 8.0.into(),
+        })
+}
 
 pub const FONT_TEXT: Font = Font {
     family: iced::font::Family::Name("Cascadia Code NF"),
@@ -18,9 +47,11 @@ pub const FONT_ICON: Font = Font {
 
 struct BarApp {
     windows: BTreeMap<window::Id, platform::DisplaySpec>,
+    dock_hidden: bool,
     aerospace: widgets::aerospace::State,
     now_playing: widgets::now_playing::State,
     perf: widgets::perf::State,
+    network: widgets::network::State,
     battery: widgets::battery::State,
     clock: widgets::clock::State,
 }
@@ -29,9 +60,11 @@ impl Default for BarApp {
     fn default() -> Self {
         Self {
             windows: BTreeMap::new(),
+            dock_hidden: false,
             aerospace: widgets::aerospace::State::default(),
             now_playing: widgets::now_playing::State::default(),
             perf: widgets::perf::State::default(),
+            network: widgets::network::State::default(),
             battery: widgets::battery::State::default(),
             clock: widgets::clock::State::default(),
         }
@@ -81,7 +114,14 @@ fn update(state: &mut BarApp, message: Message) -> Task<Message> {
             }
 
             match event {
-                window::Event::Opened { .. } | window::Event::Resized(_) => reconcile_window(id),
+                window::Event::Opened { .. } => {
+                    if !state.dock_hidden {
+                        platform::hide_from_dock();
+                        state.dock_hidden = true;
+                    }
+                    reconcile_window(id)
+                }
+                window::Event::Resized(_) => reconcile_window(id),
                 _ => Task::none(),
             }
         }
@@ -100,6 +140,7 @@ fn update(state: &mut BarApp, message: Message) -> Task<Message> {
         }
         Message::MediumTick(now) => {
             state.perf.refresh(now);
+            state.network.refresh(now);
             Task::perform(
                 widgets::now_playing::load_data(),
                 Message::NowPlayingUpdated,
@@ -162,6 +203,7 @@ fn view<'a>(state: &'a BarApp, id: window::Id) -> Element<'a, Message> {
             .height(Length::Fill)
             .width(Length::Fill)
             .padding([4.0, 12.0])
+            .style(|_| bar_container_style())
             .into();
     }
 
@@ -170,20 +212,25 @@ fn view<'a>(state: &'a BarApp, id: window::Id) -> Element<'a, Message> {
         state.aerospace.view_workspaces(),
         state.aerospace.view_apps(),
     ]
-    .spacing(8);
+    .spacing(8)
+    .align_y(iced::Alignment::Center);
 
     let right = row![
         state.now_playing.view(),
-        state.perf.view(),
+        state.perf.view_cpu_ram(),
+        state.network.view(),
         state.battery.view(),
         state.clock.view(),
     ]
-    .spacing(12);
+    .spacing(4)
+    .align_y(iced::Alignment::Center);
 
     container(row![left, Space::new().width(Length::Fill), right])
+        .align_y(iced::Alignment::Center)
         .height(Length::Fill)
         .width(Length::Fill)
-        .padding([4.0, 12.0])
+        .padding([2.0, 10.0])
+        .style(|_| bar_container_style())
         .into()
 }
 
@@ -193,12 +240,13 @@ fn title(_state: &BarApp, _id: window::Id) -> String {
 
 fn open_display_window(display: platform::DisplaySpec) -> Task<Message> {
     let settings = window::Settings {
-        size: Size::new(display.width, 32.0),
+        size: Size::new(display.width, BAR_HEIGHT),
         position: window::Position::Specific(Point::new(display.x, 0.0)),
-        min_size: Some(Size::new(display.width, 32.0)),
-        max_size: Some(Size::new(display.width, 32.0)),
+        min_size: Some(Size::new(display.width, BAR_HEIGHT)),
+        max_size: Some(Size::new(display.width, BAR_HEIGHT)),
         resizable: false,
         decorations: false,
+        transparent: true,
         level: window::Level::AlwaysOnTop,
         ..window::Settings::default()
     };
@@ -210,7 +258,7 @@ fn open_display_window(display: platform::DisplaySpec) -> Task<Message> {
 
 fn reconcile_window(id: window::Id) -> Task<Message> {
     window::run(id, move |window| {
-        let _ = platform::configure_bar_window(window, 32.0);
+        let _ = platform::configure_bar_window(window, BAR_HEIGHT);
     })
     .discard()
 }
@@ -219,6 +267,11 @@ fn main() -> iced::Result {
     iced::daemon(boot, update, view)
         .subscription(subscription)
         .title(title)
+        .theme(|_state: &BarApp, _window| iced::Theme::Light)
+        .style(|_state: &BarApp, _theme| iced::theme::Style {
+            background_color: Color::TRANSPARENT,
+            text_color: crate::hex!(0x000000),
+        })
         .default_font(FONT_TEXT)
         .font(iced_fonts::LUCIDE_FONT_BYTES)
         // TODO: Build a CI for updating this font automatically
