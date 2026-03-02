@@ -4,6 +4,16 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::watch;
 
+#[cfg(target_os = "macos")]
+mod macos;
+#[cfg(target_os = "macos")]
+use macos::*;
+
+#[cfg(target_os = "linux")]
+mod linux;
+#[cfg(target_os = "linux")]
+use linux::*;
+
 // ── Shared data snapshot ──────────────────────────────────────────────────────
 
 #[derive(Debug, Clone)]
@@ -80,7 +90,7 @@ pub fn spawn_collectors(
                 interval.tick().await;
                 let now = chrono::Local::now();
                 let date = now.format("%a %b %d").to_string();
-                let time = now.format("%H:%M").to_string();
+                let time = now.format("%H:%M:%S").to_string();
                 tx.send_modify(|d| {
                     d.date = date;
                     d.time = time;
@@ -188,7 +198,7 @@ pub fn spawn_collectors(
         });
     }
 
-    // WM (AeroSpace) – fast tick 500ms + fallback 10s
+    // WM (AeroSpace on macOS, stubs on Linux) – fast tick 500ms + fallback 10s
     {
         let tx = tx.clone();
         let notifier = notifier.clone();
@@ -302,201 +312,7 @@ fn ewma(history: f64, sample: f64, elapsed: f64) -> f64 {
     sample + (history - sample) * w
 }
 
-// ── Now Playing ───────────────────────────────────────────────────────────────
-
-#[cfg(target_os = "macos")]
-async fn load_now_playing() -> Option<NowPlayingData> {
-    let output = tokio::process::Command::new("nowplaying-cli")
-        .args(["get", "title", "artist"])
-        .output()
-        .await
-        .ok()?;
-    if !output.status.success() {
-        return None;
-    }
-    let content = String::from_utf8(output.stdout).ok()?;
-    let mut lines = content
-        .lines()
-        .map(str::trim)
-        .filter(|l| !l.is_empty())
-        .map(ToOwned::to_owned);
-    let title = lines.next().unwrap_or_default();
-    let artist = lines.next().unwrap_or_default();
-    if title.is_empty() && artist.is_empty() {
-        None
-    } else {
-        Some(NowPlayingData { title, artist })
-    }
-}
-
-#[cfg(not(target_os = "macos"))]
-async fn load_now_playing() -> Option<NowPlayingData> {
-    None
-}
-
-// ── WM / AeroSpace ───────────────────────────────────────────────────────────
-
-#[cfg(target_os = "macos")]
-async fn load_wm_data() -> WmData {
-    WmData {
-        mode: wm_mode().unwrap_or_else(|| String::from("main")),
-        used_workspaces: wm_used_workspaces(),
-        focused_workspace: wm_focused_workspace(),
-        apps_in_focused_workspace: Vec::new(),
-    }
-}
-
-#[cfg(not(target_os = "macos"))]
-async fn load_wm_data() -> WmData {
-    WmData::default()
-}
-
-#[cfg(target_os = "macos")]
-async fn load_focused_workspace_bridge() -> Option<String> {
-    let content = std::fs::read_to_string("/tmp/mybar-aerospace-focused-workspace").ok()?;
-    parse_focused_workspace_bridge(content)
-}
-
-#[cfg(not(target_os = "macos"))]
-async fn load_focused_workspace_bridge() -> Option<String> {
-    None
-}
-
-#[cfg(target_os = "macos")]
-async fn load_mode_bridge() -> Option<String> {
-    let content = std::fs::read_to_string("/tmp/aerospace-mode").ok()?;
-    parse_mode_bridge(content)
-}
-
-#[cfg(not(target_os = "macos"))]
-async fn load_mode_bridge() -> Option<String> {
-    None
-}
-
-#[cfg(target_os = "macos")]
-async fn load_apps_for_workspace(workspace: &str) -> Vec<String> {
-    let preferred = run_aerospace(&[
-        "list-windows",
-        "--workspace",
-        workspace,
-        "--format",
-        "%{app-name}",
-    ])
-    .map(parse_lines)
-    .unwrap_or_default();
-    if !preferred.is_empty() {
-        return unique_preserve_order(preferred);
-    }
-    let fallback = run_aerospace(&["list-windows", "--workspace", workspace])
-        .map(parse_lines)
-        .unwrap_or_default();
-    let parsed: Vec<String> = fallback
-        .iter()
-        .filter_map(|line| line.split('|').nth(1))
-        .map(|v| v.trim().to_owned())
-        .filter(|v| !v.is_empty())
-        .collect();
-    unique_preserve_order(parsed)
-}
-
-#[cfg(not(target_os = "macos"))]
-async fn load_apps_for_workspace(_workspace: &str) -> Vec<String> {
-    Vec::new()
-}
-
-// ── AeroSpace CLI helpers (macOS only) ────────────────────────────────────────
-
-#[cfg(target_os = "macos")]
-fn wm_mode() -> Option<String> {
-    std::fs::read_to_string("/tmp/aerospace-mode")
-        .ok()
-        .map(|v| v.trim().to_owned())
-        .filter(|v| !v.is_empty())
-}
-
-#[cfg(target_os = "macos")]
-fn wm_used_workspaces() -> Vec<String> {
-    let preferred = run_aerospace(&["list-windows", "--all", "--format", "%{workspace}"])
-        .map(parse_lines)
-        .unwrap_or_default();
-    if !preferred.is_empty() {
-        return unique_sorted_workspaces(preferred);
-    }
-    let fallback = run_aerospace(&["list-workspaces", "--monitor", "all"])
-        .map(parse_lines)
-        .unwrap_or_default();
-    unique_sorted_workspaces(fallback)
-}
-
-#[cfg(target_os = "macos")]
-fn wm_focused_workspace() -> Option<String> {
-    run_aerospace(&["list-workspaces", "--focused"])
-        .and_then(|o| parse_lines(o).into_iter().next())
-}
-
-#[cfg(target_os = "macos")]
-fn run_aerospace(args: &[&str]) -> Option<String> {
-    let output = std::process::Command::new("aerospace")
-        .args(args)
-        .output()
-        .ok()?;
-    if !output.status.success() {
-        return None;
-    }
-    String::from_utf8(output.stdout)
-        .ok()
-        .map(|s| s.trim().to_owned())
-}
-
-#[cfg(target_os = "macos")]
-fn parse_lines(output: String) -> Vec<String> {
-    output
-        .lines()
-        .map(str::trim)
-        .filter(|l| !l.is_empty())
-        .map(ToOwned::to_owned)
-        .collect()
-}
-
-#[cfg(target_os = "macos")]
-fn parse_focused_workspace_bridge(content: String) -> Option<String> {
-    let trimmed = content.trim();
-    if trimmed.is_empty() {
-        return None;
-    }
-    if let Some(value) = trimmed.strip_prefix("FOCUSED_WORKSPACE=") {
-        let value = value.trim();
-        if value.is_empty() { None } else { Some(value.to_owned()) }
-    } else {
-        Some(trimmed.to_owned())
-    }
-}
-
-#[cfg(target_os = "macos")]
-fn parse_mode_bridge(content: String) -> Option<String> {
-    let trimmed = content.trim();
-    if trimmed.is_empty() {
-        return None;
-    }
-    for key in ["MODE=", "AEROSPACE_MODE="] {
-        if let Some(value) = trimmed.strip_prefix(key) {
-            let value = value.trim();
-            return if value.is_empty() { None } else { Some(value.to_owned()) };
-        }
-    }
-    Some(trimmed.to_owned())
-}
-
-#[cfg(target_os = "macos")]
-fn unique_preserve_order(input: Vec<String>) -> Vec<String> {
-    let mut seen = std::collections::BTreeSet::new();
-    input
-        .into_iter()
-        .filter(|item| seen.insert(item.clone()))
-        .collect()
-}
-
-fn unique_sorted_workspaces(input: Vec<String>) -> Vec<String> {
+pub(crate) fn unique_sorted_workspaces(input: Vec<String>) -> Vec<String> {
     let mut output: Vec<String> = input
         .into_iter()
         .collect::<std::collections::BTreeSet<_>>()

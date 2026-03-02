@@ -1,6 +1,10 @@
+#[cfg(not(any(target_os = "macos", target_os = "linux")))]
+compile_error!("mybar only supports macOS and Linux");
+
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+#[cfg(target_os = "macos")]
 use objc2::rc::autoreleasepool;
 use tokio::sync::watch;
 use winit::application::ApplicationHandler;
@@ -181,7 +185,11 @@ fn main() {
     let proxy = event_loop.create_proxy();
     let mut app = App::new(proxy);
 
+    #[cfg(target_os = "macos")]
     autoreleasepool(|_| {
         event_loop.run_app(&mut app).expect("event loop failed");
     });
+
+    #[cfg(not(target_os = "macos"))]
+    event_loop.run_app(&mut app).expect("event loop failed");
 }

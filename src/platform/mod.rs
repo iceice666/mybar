@@ -9,6 +9,9 @@ pub struct DisplaySpec {
 #[cfg(target_os = "macos")]
 mod macos;
 
+#[cfg(target_os = "linux")]
+mod linux;
+
 #[cfg(target_os = "macos")]
 pub use macos::configure_bar_window;
 
@@ -17,21 +20,17 @@ pub fn displays() -> Vec<DisplaySpec> {
     macos::displays()
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(target_os = "linux")]
 pub fn displays() -> Vec<DisplaySpec> {
-    vec![DisplaySpec {
-        index: 0,
-        x: 0.0,
-        width: 1024.0,
-    }]
+    linux::displays_wayland()
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(target_os = "linux")]
 pub fn configure_bar_window(
-    _window: &winit::window::Window,
-    _bar_height: f32,
+    window: &winit::window::Window,
+    bar_height: f32,
 ) -> Result<(), String> {
-    Ok(())
+    linux::configure_bar_window_wayland(window, bar_height)
 }
 
 #[cfg(target_os = "macos")]
@@ -40,7 +39,7 @@ pub fn is_dark_mode() -> bool {
     macos::is_dark_mode()
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(target_os = "linux")]
 #[allow(dead_code)]
 pub fn is_dark_mode() -> bool {
     false
@@ -51,5 +50,7 @@ pub fn hide_from_dock() {
     macos::hide_from_dock();
 }
 
-#[cfg(not(target_os = "macos"))]
-pub fn hide_from_dock() {}
+#[cfg(target_os = "linux")]
+pub fn hide_from_dock() {
+    linux::hide_from_taskbar_wayland();
+}
