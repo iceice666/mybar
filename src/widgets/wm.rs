@@ -9,16 +9,15 @@ use crate::style;
 
 include!(concat!(env!("OUT_DIR"), "/icon_map.rs"));
 
+fn measure_icon_width(fc: &FontCollection, icon: &str) -> f32 {
+    measure_text(fc, icon, style::FONT_FAMILY_ICON, style::FONT_SIZE_LG) - style::ICON_ADVANCE_TRIM
+}
+
 // ── Mode badge ───────────────────────────────────────────────────────────────
 
 pub fn measure_mode(fc: &FontCollection, data: &BarData) -> f32 {
     let label = format!("{}:", data.wm.mode);
-    let w = measure_text(
-        fc,
-        &label,
-        style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_SM,
-    );
+    let w = measure_text(fc, &label, style::FONT_FAMILY_TEXT, style::FONT_SIZE_SM);
     w + style::WIDGET_PADDING_H * 2.0
 }
 
@@ -33,12 +32,7 @@ pub fn draw_mode(canvas: &Canvas, fc: &FontCollection, data: &BarData, rect: Rec
     );
 
     let label = format!("{}:", data.wm.mode);
-    let h = text_height(
-        fc,
-        &label,
-        style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_SM,
-    );
+    let h = text_height(fc, &label, style::FONT_FAMILY_TEXT, style::FONT_SIZE_SM);
     let y = rect.top + (rect.height() - h) / 2.0;
     let x = rect.left + style::WIDGET_PADDING_H;
 
@@ -70,8 +64,7 @@ pub fn measure_workspaces(fc: &FontCollection, data: &BarData) -> f32 {
             total += style::INNER_SPACING;
         }
         let active = Some(ws.as_str()) == focused;
-        let mut pill_inner =
-            measure_text(fc, ws, style::FONT_FAMILY_TEXT, style::FONT_SIZE_SM);
+        let mut pill_inner = measure_text(fc, ws, style::FONT_FAMILY_TEXT, style::FONT_SIZE_SM);
 
         if active {
             for app in &data.wm.apps_in_focused_workspace {
@@ -81,8 +74,7 @@ pub fn measure_workspaces(fc: &FontCollection, data: &BarData) -> f32 {
                     pill_inner +=
                         measure_text(fc, app, style::FONT_FAMILY_TEXT, style::FONT_SIZE_SM);
                 } else {
-                    pill_inner +=
-                        measure_text(fc, icon, style::FONT_FAMILY_ICON, style::FONT_SIZE_LG);
+                    pill_inner += measure_icon_width(fc, icon);
                 }
             }
         }
@@ -122,8 +114,7 @@ pub fn draw_workspaces(canvas: &Canvas, fc: &FontCollection, data: &BarData, rec
         let active = Some(ws.as_str()) == focused;
 
         // Compute pill width
-        let mut pill_inner =
-            measure_text(fc, ws, style::FONT_FAMILY_TEXT, style::FONT_SIZE_SM);
+        let mut pill_inner = measure_text(fc, ws, style::FONT_FAMILY_TEXT, style::FONT_SIZE_SM);
         if active {
             for app in &data.wm.apps_in_focused_workspace {
                 let icon = app_name_to_icon(app);
@@ -132,8 +123,7 @@ pub fn draw_workspaces(canvas: &Canvas, fc: &FontCollection, data: &BarData, rec
                     pill_inner +=
                         measure_text(fc, app, style::FONT_FAMILY_TEXT, style::FONT_SIZE_SM);
                 } else {
-                    pill_inner +=
-                        measure_text(fc, icon, style::FONT_FAMILY_ICON, style::FONT_SIZE_LG);
+                    pill_inner += measure_icon_width(fc, icon);
                 }
             }
         }
@@ -177,8 +167,7 @@ pub fn draw_workspaces(canvas: &Canvas, fc: &FontCollection, data: &BarData, rec
                 tx += style::INNER_SPACING;
                 let icon = app_name_to_icon(app);
                 if icon == ":default:" {
-                    let ih =
-                        text_height(fc, app, style::FONT_FAMILY_TEXT, style::FONT_SIZE_SM);
+                    let ih = text_height(fc, app, style::FONT_FAMILY_TEXT, style::FONT_SIZE_SM);
                     let iy = rect.top + (rect.height() - ih) / 2.0;
                     draw_text(
                         canvas,
@@ -204,7 +193,7 @@ pub fn draw_workspaces(canvas: &Canvas, fc: &FontCollection, data: &BarData, rec
                         style::FONT_SIZE_LG,
                         style::TEXT_COLOR,
                     );
-                    tx += measure_text(fc, icon, style::FONT_FAMILY_ICON, style::FONT_SIZE_LG);
+                    tx += measure_icon_width(fc, icon);
                 }
             }
         }
