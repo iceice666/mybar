@@ -34,6 +34,7 @@ objc2-foundation = { version = "0.3.2", features = ["objc2-core-foundation"] }
 objc2-metal = "0.3"
 objc2-quartz-core = { version = "0.3", features = ["CAMetalLayer", "CALayer", "objc2-metal"] }
 objc2-core-foundation = "0.3"
+objc2-core-wlan = "0.3"
 
 [build-dependencies]
 serde = { version = "1", features = ["derive"] }

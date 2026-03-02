@@ -47,3 +47,48 @@ fn wm_focused_workspace() -> Option<String> {
     // TODO(linux-wm): EWMH _NET_CURRENT_DESKTOP or Wayland compositor workspace
     None
 }
+
+/// Read WiFi signal strength (0–100). Returns None when not on WiFi or unavailable.
+/// Reads /proc/net/wireless (link quality) or tries nmcli for the in-use AP signal.
+pub fn read_wifi_signal() -> Option<u8> {
+    proc_net_wireless_signal().or_else(nmcli_wifi_signal)
+}
+
+fn proc_net_wireless_signal() -> Option<u8> {
+    let content = std::fs::read_to_string("/proc/net/wireless").ok()?;
+    // Lines: Inter-| sta-|   Quality ... ; then wlan0: 0000. 70. 70. ...
+    for line in content.lines().skip(2) {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let mut parts = line.split_whitespace();
+        let _iface = parts.next()?;
+        let _status = parts.next()?;
+        let quality = parts.next()?;
+        let quality = quality.trim_end_matches('.').parse::<u8>().ok()?;
+        // Kernel reports 0–70 typically; normalize to 0–100
+        let pct = (quality as f64 / 70.0 * 100.0).round().clamp(0.0, 100.0) as u8;
+        return Some(pct);
+    }
+    None
+}
+
+fn nmcli_wifi_signal() -> Option<u8> {
+    let output = std::process::Command::new("nmcli")
+        .args(["-t", "-f", "IN-USE,SIGNAL", "dev", "wifi", "list"])
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let s = String::from_utf8(output.stdout).ok()?;
+    for line in s.lines() {
+        let line = line.trim();
+        if line.starts_with("*:") {
+            let signal = line.strip_prefix("*:")?.trim().parse::<u8>().ok()?;
+            return Some(signal.min(100));
+        }
+    }
+    None
+}

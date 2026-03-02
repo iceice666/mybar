@@ -25,6 +25,7 @@ pub struct BarData {
     pub mem_total: u64,
     pub net_upload: f64,
     pub net_download: f64,
+    pub wifi_signal: Option<u8>,
     pub battery_percent: Option<u8>,
     pub battery_charging: bool,
     pub date: String,
@@ -42,6 +43,7 @@ impl Default for BarData {
             mem_total: 0,
             net_upload: 0.0,
             net_download: 0.0,
+            wifi_signal: None,
             battery_percent: None,
             battery_charging: false,
             date: now.format("%a %b %d").to_string(),
@@ -174,9 +176,15 @@ pub fn spawn_collectors(
                 smooth_down = ewma(smooth_down, rx as f64 / elapsed, elapsed);
                 smooth_up = ewma(smooth_up, tx_bytes as f64 / elapsed, elapsed);
 
+                let wifi_signal = tokio::task::spawn_blocking(|| read_wifi_signal())
+                    .await
+                    .ok()
+                    .flatten();
+
                 tx.send_modify(|d| {
                     d.net_upload = smooth_up;
                     d.net_download = smooth_down;
+                    d.wifi_signal = wifi_signal;
                 });
                 notifier();
             }

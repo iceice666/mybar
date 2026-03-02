@@ -1,4 +1,7 @@
-//! macOS-specific data sources: AeroSpace WM, nowplaying-cli, bridge files.
+//! macOS-specific data sources: AeroSpace WM, nowplaying-cli, bridge files, Core WLAN.
+
+use objc2::rc::autoreleasepool;
+use objc2_core_wlan::CWWiFiClient;
 
 use super::{NowPlayingData, WmData};
 
@@ -158,4 +161,27 @@ fn unique_preserve_order(input: Vec<String>) -> Vec<String> {
         .into_iter()
         .filter(|item| seen.insert(item.clone()))
         .collect()
+}
+
+/// Read WiFi signal strength (0–100). Returns None when not on WiFi or unavailable.
+/// Uses Core WLAN (no sudo, no subprocess).
+pub fn read_wifi_signal() -> Option<u8> {
+    autoreleasepool(|_| {
+        let client = unsafe { CWWiFiClient::sharedWiFiClient() };
+        let iface = unsafe { client.interface() }?;
+        let rssi = unsafe { iface.rssiValue() };
+        // 0 means error or not associated (Core WLAN docs).
+        if rssi == 0 {
+            return None;
+        }
+        let rssi_i32 = rssi as i32;
+        Some(rssi_to_percent(rssi_i32))
+    })
+}
+
+fn rssi_to_percent(rssi_dbm: i32) -> u8 {
+    // RSSI typically -90 (weak) to -30 (strong). Linear map to 0..=100.
+    let clamped = rssi_dbm.clamp(-90, -30);
+    let pct = (clamped + 90) as f64 / 60.0 * 100.0;
+    pct.round().clamp(0.0, 100.0) as u8
 }

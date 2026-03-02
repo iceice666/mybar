@@ -7,8 +7,25 @@ use crate::data::BarData;
 use crate::render::{draw_pill, draw_text, measure_text, text_height};
 use crate::style;
 
-// Arrow up-down icon from Nerd Font (Cascadia Code NF)
-const ICON_ARROW_UP_DOWN: &str = "\u{F05A9}";
+// Icons from Nerd Font (Cascadia Code NF)
+const ICON_WIFI_UNKNOWN: &str = "\u{F092B}";
+// WiFi strength 1–4 bars (Material Design Icons)
+const ICON_WIFI_1: &str = "\u{F091F}";
+const ICON_WIFI_2: &str = "\u{F0922}";
+const ICON_WIFI_3: &str = "\u{F0925}";
+const ICON_WIFI_4: &str = "\u{F0928}";
+
+fn network_icon(wifi_signal: Option<u8>) -> &'static str {
+    let Some(pct) = wifi_signal else {
+        return ICON_WIFI_UNKNOWN;
+    };
+    match pct {
+        0..=25 => ICON_WIFI_1,
+        26..=50 => ICON_WIFI_2,
+        51..=75 => ICON_WIFI_3,
+        _ => ICON_WIFI_4,
+    }
+}
 
 fn format_k(bytes_per_sec: f64) -> String {
     let kb = bytes_per_sec / 1024.0;
@@ -32,9 +49,10 @@ fn format_k(bytes_per_sec: f64) -> String {
 }
 
 pub fn measure(fc: &FontCollection, data: &BarData) -> f32 {
+    let icon = network_icon(data.wifi_signal);
     let icon_w = measure_text(
         fc,
-        ICON_ARROW_UP_DOWN,
+        icon,
         style::FONT_FAMILY_TEXT,
         style::FONT_SIZE_2XL,
     );
@@ -69,10 +87,11 @@ pub fn draw(canvas: &Canvas, fc: &FontCollection, data: &BarData, rect: Rect) {
 
     let mut x = rect.left + style::WIDGET_PADDING_H;
 
-    // Icon (vertically centered)
+    // Icon (vertically centered; varies by WiFi signal when on WiFi)
+    let icon = network_icon(data.wifi_signal);
     let icon_h = text_height(
         fc,
-        ICON_ARROW_UP_DOWN,
+        icon,
         style::FONT_FAMILY_TEXT,
         style::FONT_SIZE_2XL,
     );
@@ -80,7 +99,7 @@ pub fn draw(canvas: &Canvas, fc: &FontCollection, data: &BarData, rect: Rect) {
     draw_text(
         canvas,
         fc,
-        ICON_ARROW_UP_DOWN,
+        icon,
         x,
         icon_y,
         style::FONT_FAMILY_TEXT,
@@ -89,7 +108,7 @@ pub fn draw(canvas: &Canvas, fc: &FontCollection, data: &BarData, rect: Rect) {
     );
     let icon_w = measure_text(
         fc,
-        ICON_ARROW_UP_DOWN,
+        icon,
         style::FONT_FAMILY_TEXT,
         style::FONT_SIZE_2XL,
     );
