@@ -8,7 +8,7 @@ use crate::render::{draw_pill, draw_text, measure_text, text_height};
 use crate::style;
 
 // Arrow up-down icon from Nerd Font (Cascadia Code NF)
-const ICON_ARROW_UP_DOWN: &str = "\u{F07D1}";
+const ICON_ARROW_UP_DOWN: &str = "\u{F05A9}";
 
 fn format_k(bytes_per_sec: f64) -> String {
     let kb = bytes_per_sec / 1024.0;
@@ -36,17 +36,17 @@ pub fn measure(fc: &FontCollection, data: &BarData) -> f32 {
         fc,
         ICON_ARROW_UP_DOWN,
         style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_TIME,
+        style::FONT_SIZE_2XL,
     );
 
-    let up_label_w = measure_text(fc, "UP", style::FONT_FAMILY_TEXT, style::FONT_SIZE_LABEL);
+    let up_label_w = measure_text(fc, "UP", style::FONT_FAMILY_TEXT, style::FONT_SIZE_2XS);
     let up_val = format_k(data.net_upload);
-    let up_val_w = measure_text(fc, &up_val, style::FONT_FAMILY_TEXT, style::FONT_SIZE_TIME);
+    let up_val_w = measure_text(fc, &up_val, style::FONT_FAMILY_TEXT, style::FONT_SIZE_BASE);
     let up_w = up_label_w.max(up_val_w);
 
-    let dn_label_w = measure_text(fc, "DOWN", style::FONT_FAMILY_TEXT, style::FONT_SIZE_LABEL);
+    let dn_label_w = measure_text(fc, "DOWN", style::FONT_FAMILY_TEXT, style::FONT_SIZE_2XS);
     let dn_val = format_k(data.net_download);
-    let dn_val_w = measure_text(fc, &dn_val, style::FONT_FAMILY_TEXT, style::FONT_SIZE_TIME);
+    let dn_val_w = measure_text(fc, &dn_val, style::FONT_FAMILY_TEXT, style::FONT_SIZE_BASE);
     let dn_w = dn_label_w.max(dn_val_w);
 
     icon_w
@@ -74,7 +74,7 @@ pub fn draw(canvas: &Canvas, fc: &FontCollection, data: &BarData, rect: Rect) {
         fc,
         ICON_ARROW_UP_DOWN,
         style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_TIME,
+        style::FONT_SIZE_2XL,
     );
     let icon_y = rect.top + (rect.height() - icon_h) / 2.0;
     draw_text(
@@ -84,26 +84,26 @@ pub fn draw(canvas: &Canvas, fc: &FontCollection, data: &BarData, rect: Rect) {
         x,
         icon_y,
         style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_TIME,
+        style::FONT_SIZE_2XL,
         style::TEXT_COLOR,
     );
     let icon_w = measure_text(
         fc,
         ICON_ARROW_UP_DOWN,
         style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_TIME,
+        style::FONT_SIZE_2XL,
     );
     x += icon_w + style::INNER_SPACING;
 
     // Upload column (label + value stacked)
-    let label_h = text_height(fc, "UP", style::FONT_FAMILY_TEXT, style::FONT_SIZE_LABEL);
-    let val_h = text_height(fc, "0K", style::FONT_FAMILY_TEXT, style::FONT_SIZE_TIME);
+    let label_h = text_height(fc, "UP", style::FONT_FAMILY_TEXT, style::FONT_SIZE_2XS);
+    let val_h = text_height(fc, "0K", style::FONT_FAMILY_TEXT, style::FONT_SIZE_BASE);
     let col_h = label_h + val_h;
     let col_y = rect.top + (rect.height() - col_h) / 2.0;
 
-    let up_label_w = measure_text(fc, "UP", style::FONT_FAMILY_TEXT, style::FONT_SIZE_LABEL);
+    let up_label_w = measure_text(fc, "UP", style::FONT_FAMILY_TEXT, style::FONT_SIZE_2XS);
     let up_val = format_k(data.net_upload);
-    let up_val_w = measure_text(fc, &up_val, style::FONT_FAMILY_TEXT, style::FONT_SIZE_TIME);
+    let up_val_w = measure_text(fc, &up_val, style::FONT_FAMILY_TEXT, style::FONT_SIZE_BASE);
     let up_col_w = up_label_w.max(up_val_w);
 
     // Center label within column
@@ -115,7 +115,7 @@ pub fn draw(canvas: &Canvas, fc: &FontCollection, data: &BarData, rect: Rect) {
         up_label_x,
         col_y,
         style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_LABEL,
+        style::FONT_SIZE_2XS,
         style::TEXT_COLOR,
     );
     // Center value within column
@@ -127,16 +127,16 @@ pub fn draw(canvas: &Canvas, fc: &FontCollection, data: &BarData, rect: Rect) {
         up_val_x,
         col_y + label_h,
         style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_TIME,
+        style::FONT_SIZE_BASE,
         style::TEXT_COLOR,
     );
 
     x += up_col_w + style::INNER_SPACING;
 
     // Download column
-    let dn_label_w = measure_text(fc, "DOWN", style::FONT_FAMILY_TEXT, style::FONT_SIZE_LABEL);
+    let dn_label_w = measure_text(fc, "DOWN", style::FONT_FAMILY_TEXT, style::FONT_SIZE_2XS);
     let dn_val = format_k(data.net_download);
-    let dn_val_w = measure_text(fc, &dn_val, style::FONT_FAMILY_TEXT, style::FONT_SIZE_TIME);
+    let dn_val_w = measure_text(fc, &dn_val, style::FONT_FAMILY_TEXT, style::FONT_SIZE_BASE);
     let dn_col_w = dn_label_w.max(dn_val_w);
 
     // Center label within column
@@ -148,7 +148,7 @@ pub fn draw(canvas: &Canvas, fc: &FontCollection, data: &BarData, rect: Rect) {
         dn_label_x,
         col_y,
         style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_LABEL,
+        style::FONT_SIZE_2XS,
         style::TEXT_COLOR,
     );
     // Center value within column
@@ -160,7 +160,7 @@ pub fn draw(canvas: &Canvas, fc: &FontCollection, data: &BarData, rect: Rect) {
         dn_val_x,
         col_y + label_h,
         style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_TIME,
+        style::FONT_SIZE_BASE,
         style::TEXT_COLOR,
     );
 }

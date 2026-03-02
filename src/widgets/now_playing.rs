@@ -20,7 +20,7 @@ pub fn measure(fc: &FontCollection, data: &BarData) -> f32 {
     let Some(text) = label(data) else {
         return 0.0;
     };
-    measure_text(fc, &text, style::FONT_FAMILY_TEXT, style::FONT_SIZE_DEFAULT)
+    measure_text(fc, &text, style::FONT_FAMILY_TEXT, style::FONT_SIZE_SM)
 }
 
 pub fn draw(canvas: &Canvas, fc: &FontCollection, data: &BarData, rect: Rect) {
@@ -28,7 +28,7 @@ pub fn draw(canvas: &Canvas, fc: &FontCollection, data: &BarData, rect: Rect) {
         return;
     };
 
-    let h = text_height(fc, &text, style::FONT_FAMILY_TEXT, style::FONT_SIZE_DEFAULT);
+    let h = text_height(fc, &text, style::FONT_FAMILY_TEXT, style::FONT_SIZE_SM);
     let y = rect.top + (rect.height() - h) / 2.0;
 
     draw_text(
@@ -38,7 +38,7 @@ pub fn draw(canvas: &Canvas, fc: &FontCollection, data: &BarData, rect: Rect) {
         rect.left,
         y,
         style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_DEFAULT,
+        style::FONT_SIZE_SM,
         style::TEXT_COLOR,
     );
 }

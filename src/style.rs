@@ -35,14 +35,16 @@ pub const BAR_RADIUS: f32 = 8.0;
 
 pub const TEXT_COLOR: Color4f = Color4f::new(0.0, 0.0, 0.0, 1.0); // #000000
 
-// -- Font sizes -------------------------------------------------------------
+// -- Font sizes (Tailwind-style scale) --------------------------------------
 
-pub const FONT_SIZE_DEFAULT: f32 = 14.0;
-pub const FONT_SIZE_SMALL: f32 = 10.0;
-pub const FONT_SIZE_LABEL: f32 = 8.0;
-pub const FONT_SIZE_TIME: f32 = 16.0;
-pub const FONT_SIZE_ICON: f32 = 18.0;
-pub const FONT_SIZE_BATTERY_ICON: f32 = 24.0;
+pub const FONT_SIZE_2XS: f32 = 8.0;   // label / extra small
+pub const FONT_SIZE_XS: f32 = 10.0;
+pub const FONT_SIZE_SM: f32 = 14.0;   // default body
+pub const FONT_SIZE_BASE: f32 = 16.0; // time / primary values
+pub const FONT_SIZE_LG: f32 = 18.0;   // icon
+#[allow(dead_code)]
+pub const FONT_SIZE_XL: f32 = 20.0;
+pub const FONT_SIZE_2XL: f32 = 24.0;  // battery icon
 
 // -- Spacing ----------------------------------------------------------------
 

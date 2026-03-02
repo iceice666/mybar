@@ -17,7 +17,7 @@ pub fn measure_mode(fc: &FontCollection, data: &BarData) -> f32 {
         fc,
         &label,
         style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_DEFAULT,
+        style::FONT_SIZE_SM,
     );
     w + style::WIDGET_PADDING_H * 2.0
 }
@@ -37,7 +37,7 @@ pub fn draw_mode(canvas: &Canvas, fc: &FontCollection, data: &BarData, rect: Rec
         fc,
         &label,
         style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_DEFAULT,
+        style::FONT_SIZE_SM,
     );
     let y = rect.top + (rect.height() - h) / 2.0;
     let x = rect.left + style::WIDGET_PADDING_H;
@@ -49,7 +49,7 @@ pub fn draw_mode(canvas: &Canvas, fc: &FontCollection, data: &BarData, rect: Rec
         x,
         y,
         style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_DEFAULT,
+        style::FONT_SIZE_SM,
         style::TEXT_COLOR,
     );
 }
@@ -59,7 +59,7 @@ pub fn draw_mode(canvas: &Canvas, fc: &FontCollection, data: &BarData, rect: Rec
 /// Measure total width of all workspace pills.
 pub fn measure_workspaces(fc: &FontCollection, data: &BarData) -> f32 {
     if data.wm.used_workspaces.is_empty() {
-        return measure_text(fc, "--", style::FONT_FAMILY_TEXT, style::FONT_SIZE_DEFAULT);
+        return measure_text(fc, "--", style::FONT_FAMILY_TEXT, style::FONT_SIZE_SM);
     }
 
     let focused = data.wm.focused_workspace.as_deref();
@@ -71,7 +71,7 @@ pub fn measure_workspaces(fc: &FontCollection, data: &BarData) -> f32 {
         }
         let active = Some(ws.as_str()) == focused;
         let mut pill_inner =
-            measure_text(fc, ws, style::FONT_FAMILY_TEXT, style::FONT_SIZE_DEFAULT);
+            measure_text(fc, ws, style::FONT_FAMILY_TEXT, style::FONT_SIZE_SM);
 
         if active {
             for app in &data.wm.apps_in_focused_workspace {
@@ -79,10 +79,10 @@ pub fn measure_workspaces(fc: &FontCollection, data: &BarData) -> f32 {
                 pill_inner += style::INNER_SPACING;
                 if icon == ":default:" {
                     pill_inner +=
-                        measure_text(fc, app, style::FONT_FAMILY_TEXT, style::FONT_SIZE_DEFAULT);
+                        measure_text(fc, app, style::FONT_FAMILY_TEXT, style::FONT_SIZE_SM);
                 } else {
                     pill_inner +=
-                        measure_text(fc, icon, style::FONT_FAMILY_ICON, style::FONT_SIZE_ICON);
+                        measure_text(fc, icon, style::FONT_FAMILY_ICON, style::FONT_SIZE_LG);
                 }
             }
         }
@@ -96,7 +96,7 @@ pub fn measure_workspaces(fc: &FontCollection, data: &BarData) -> f32 {
 /// Draw all workspace pills into the given rect.
 pub fn draw_workspaces(canvas: &Canvas, fc: &FontCollection, data: &BarData, rect: Rect) {
     if data.wm.used_workspaces.is_empty() {
-        let h = text_height(fc, "--", style::FONT_FAMILY_TEXT, style::FONT_SIZE_DEFAULT);
+        let h = text_height(fc, "--", style::FONT_FAMILY_TEXT, style::FONT_SIZE_SM);
         let y = rect.top + (rect.height() - h) / 2.0;
         draw_text(
             canvas,
@@ -105,7 +105,7 @@ pub fn draw_workspaces(canvas: &Canvas, fc: &FontCollection, data: &BarData, rec
             rect.left,
             y,
             style::FONT_FAMILY_TEXT,
-            style::FONT_SIZE_DEFAULT,
+            style::FONT_SIZE_SM,
             style::TEXT_COLOR,
         );
         return;
@@ -123,17 +123,17 @@ pub fn draw_workspaces(canvas: &Canvas, fc: &FontCollection, data: &BarData, rec
 
         // Compute pill width
         let mut pill_inner =
-            measure_text(fc, ws, style::FONT_FAMILY_TEXT, style::FONT_SIZE_DEFAULT);
+            measure_text(fc, ws, style::FONT_FAMILY_TEXT, style::FONT_SIZE_SM);
         if active {
             for app in &data.wm.apps_in_focused_workspace {
                 let icon = app_name_to_icon(app);
                 pill_inner += style::INNER_SPACING;
                 if icon == ":default:" {
                     pill_inner +=
-                        measure_text(fc, app, style::FONT_FAMILY_TEXT, style::FONT_SIZE_DEFAULT);
+                        measure_text(fc, app, style::FONT_FAMILY_TEXT, style::FONT_SIZE_SM);
                 } else {
                     pill_inner +=
-                        measure_text(fc, icon, style::FONT_FAMILY_ICON, style::FONT_SIZE_ICON);
+                        measure_text(fc, icon, style::FONT_FAMILY_ICON, style::FONT_SIZE_LG);
                 }
             }
         }
@@ -156,7 +156,7 @@ pub fn draw_workspaces(canvas: &Canvas, fc: &FontCollection, data: &BarData, rec
         );
 
         // Draw workspace name
-        let text_h = text_height(fc, ws, style::FONT_FAMILY_TEXT, style::FONT_SIZE_DEFAULT);
+        let text_h = text_height(fc, ws, style::FONT_FAMILY_TEXT, style::FONT_SIZE_SM);
         let text_y = rect.top + (rect.height() - text_h) / 2.0;
         let mut tx = x + style::WIDGET_PADDING_H;
         draw_text(
@@ -166,10 +166,10 @@ pub fn draw_workspaces(canvas: &Canvas, fc: &FontCollection, data: &BarData, rec
             tx,
             text_y,
             style::FONT_FAMILY_TEXT,
-            style::FONT_SIZE_DEFAULT,
+            style::FONT_SIZE_SM,
             style::TEXT_COLOR,
         );
-        tx += measure_text(fc, ws, style::FONT_FAMILY_TEXT, style::FONT_SIZE_DEFAULT);
+        tx += measure_text(fc, ws, style::FONT_FAMILY_TEXT, style::FONT_SIZE_SM);
 
         // Draw app icons for focused workspace
         if active {
@@ -178,7 +178,7 @@ pub fn draw_workspaces(canvas: &Canvas, fc: &FontCollection, data: &BarData, rec
                 let icon = app_name_to_icon(app);
                 if icon == ":default:" {
                     let ih =
-                        text_height(fc, app, style::FONT_FAMILY_TEXT, style::FONT_SIZE_DEFAULT);
+                        text_height(fc, app, style::FONT_FAMILY_TEXT, style::FONT_SIZE_SM);
                     let iy = rect.top + (rect.height() - ih) / 2.0;
                     draw_text(
                         canvas,
@@ -187,12 +187,12 @@ pub fn draw_workspaces(canvas: &Canvas, fc: &FontCollection, data: &BarData, rec
                         tx,
                         iy,
                         style::FONT_FAMILY_TEXT,
-                        style::FONT_SIZE_DEFAULT,
+                        style::FONT_SIZE_SM,
                         style::TEXT_COLOR,
                     );
-                    tx += measure_text(fc, app, style::FONT_FAMILY_TEXT, style::FONT_SIZE_DEFAULT);
+                    tx += measure_text(fc, app, style::FONT_FAMILY_TEXT, style::FONT_SIZE_SM);
                 } else {
-                    let ih = text_height(fc, icon, style::FONT_FAMILY_ICON, style::FONT_SIZE_ICON);
+                    let ih = text_height(fc, icon, style::FONT_FAMILY_ICON, style::FONT_SIZE_LG);
                     let iy = rect.top + (rect.height() - ih) / 2.0;
                     draw_text(
                         canvas,
@@ -201,10 +201,10 @@ pub fn draw_workspaces(canvas: &Canvas, fc: &FontCollection, data: &BarData, rec
                         tx,
                         iy,
                         style::FONT_FAMILY_ICON,
-                        style::FONT_SIZE_ICON,
+                        style::FONT_SIZE_LG,
                         style::TEXT_COLOR,
                     );
-                    tx += measure_text(fc, icon, style::FONT_FAMILY_ICON, style::FONT_SIZE_ICON);
+                    tx += measure_text(fc, icon, style::FONT_FAMILY_ICON, style::FONT_SIZE_LG);
                 }
             }
         }

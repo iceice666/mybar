@@ -13,13 +13,13 @@ pub fn measure(fc: &FontCollection, data: &BarData) -> f32 {
         fc,
         &data.date,
         style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_SMALL,
+        style::FONT_SIZE_XS,
     );
     let time_w = measure_text(
         fc,
         &data.time,
         style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_TIME,
+        style::FONT_SIZE_BASE,
     );
     let inner = date_w.max(time_w);
     inner + style::WIDGET_PADDING_H * 2.0
@@ -40,13 +40,13 @@ pub fn draw(canvas: &Canvas, fc: &FontCollection, data: &BarData, rect: Rect) {
         fc,
         &data.date,
         style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_SMALL,
+        style::FONT_SIZE_XS,
     );
     let time_h = text_height(
         fc,
         &data.time,
         style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_TIME,
+        style::FONT_SIZE_BASE,
     );
     let total_h = date_h + time_h;
     let start_y = rect.top + (rect.height() - total_h) / 2.0;
@@ -55,13 +55,13 @@ pub fn draw(canvas: &Canvas, fc: &FontCollection, data: &BarData, rect: Rect) {
         fc,
         &data.date,
         style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_SMALL,
+        style::FONT_SIZE_XS,
     );
     let time_w = measure_text(
         fc,
         &data.time,
         style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_TIME,
+        style::FONT_SIZE_BASE,
     );
 
     // Center date
@@ -73,7 +73,7 @@ pub fn draw(canvas: &Canvas, fc: &FontCollection, data: &BarData, rect: Rect) {
         date_x,
         start_y,
         style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_SMALL,
+        style::FONT_SIZE_XS,
         style::TEXT_COLOR,
     );
 
@@ -86,7 +86,7 @@ pub fn draw(canvas: &Canvas, fc: &FontCollection, data: &BarData, rect: Rect) {
         time_x,
         start_y + date_h,
         style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_TIME,
+        style::FONT_SIZE_BASE,
         style::TEXT_COLOR,
     );
 }

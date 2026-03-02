@@ -47,14 +47,14 @@ pub fn measure(fc: &FontCollection, data: &BarData) -> f32 {
         fc,
         icon,
         style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_BATTERY_ICON,
+        style::FONT_SIZE_2XL,
     );
     let label = format!("{pct}%");
     let label_w = measure_text(
         fc,
         &label,
         style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_DEFAULT,
+        style::FONT_SIZE_SM,
     );
     icon_w + style::INNER_SPACING + label_w + style::WIDGET_PADDING_H * 2.0
 }
@@ -80,13 +80,13 @@ pub fn draw(canvas: &Canvas, fc: &FontCollection, data: &BarData, rect: Rect) {
         fc,
         icon,
         style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_BATTERY_ICON,
+        style::FONT_SIZE_2XL,
     );
     let label_h = text_height(
         fc,
         &label,
         style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_DEFAULT,
+        style::FONT_SIZE_SM,
     );
 
     let x = rect.left + style::WIDGET_PADDING_H;
@@ -100,7 +100,7 @@ pub fn draw(canvas: &Canvas, fc: &FontCollection, data: &BarData, rect: Rect) {
         x,
         icon_y,
         style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_BATTERY_ICON,
+        style::FONT_SIZE_2XL,
         style::TEXT_COLOR,
     );
 
@@ -108,7 +108,7 @@ pub fn draw(canvas: &Canvas, fc: &FontCollection, data: &BarData, rect: Rect) {
         fc,
         icon,
         style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_BATTERY_ICON,
+        style::FONT_SIZE_2XL,
     );
 
     // Vertically center label
@@ -120,7 +120,7 @@ pub fn draw(canvas: &Canvas, fc: &FontCollection, data: &BarData, rect: Rect) {
         x + icon_w + style::INNER_SPACING,
         label_y,
         style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_DEFAULT,
+        style::FONT_SIZE_SM,
         style::TEXT_COLOR,
     );
 }

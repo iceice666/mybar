@@ -8,7 +8,7 @@ use crate::render::{draw_pill, draw_text, measure_text, text_height};
 use crate::style;
 
 // CPU icon from Nerd Font (Cascadia Code NF)
-const ICON_CPU: &str = "\u{F0EE0}";
+const ICON_CPU: &str = "\u{F4BC}";
 
 fn convert_to_gb(bytes: u64) -> f64 {
     bytes as f64 / 1024.0 / 1024.0 / 1024.0
@@ -19,16 +19,16 @@ pub fn measure(fc: &FontCollection, data: &BarData) -> f32 {
         fc,
         ICON_CPU,
         style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_DEFAULT,
+        style::FONT_SIZE_2XL,
     );
 
-    let cpu_label_w = measure_text(fc, "CPU", style::FONT_FAMILY_TEXT, style::FONT_SIZE_LABEL);
+    let cpu_label_w = measure_text(fc, "CPU", style::FONT_FAMILY_TEXT, style::FONT_SIZE_2XS);
     let cpu_val = format!("{:>3.0}%", data.cpu_percent);
     let cpu_val_w = measure_text(
         fc,
         &cpu_val,
         style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_DEFAULT,
+        style::FONT_SIZE_SM,
     );
     let cpu_w = cpu_label_w.max(cpu_val_w);
 
@@ -37,14 +37,14 @@ pub fn measure(fc: &FontCollection, data: &BarData) -> f32 {
         fc,
         &mem_label,
         style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_LABEL,
+        style::FONT_SIZE_2XS,
     );
     let mem_val = format!("{:.1}G", convert_to_gb(data.mem_used));
     let mem_val_w = measure_text(
         fc,
         &mem_val,
         style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_DEFAULT,
+        style::FONT_SIZE_SM,
     );
     let mem_w = mem_label_w.max(mem_val_w);
 
@@ -73,7 +73,7 @@ pub fn draw(canvas: &Canvas, fc: &FontCollection, data: &BarData, rect: Rect) {
         fc,
         ICON_CPU,
         style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_DEFAULT,
+        style::FONT_SIZE_2XL,
     );
     let icon_y = rect.top + (rect.height() - icon_h) / 2.0;
     draw_text(
@@ -83,30 +83,30 @@ pub fn draw(canvas: &Canvas, fc: &FontCollection, data: &BarData, rect: Rect) {
         x,
         icon_y,
         style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_DEFAULT,
+        style::FONT_SIZE_2XL,
         style::TEXT_COLOR,
     );
     let icon_w = measure_text(
         fc,
         ICON_CPU,
         style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_DEFAULT,
+        style::FONT_SIZE_2XL,
     );
     x += icon_w + style::INNER_SPACING;
 
     // CPU column
-    let label_h = text_height(fc, "CPU", style::FONT_FAMILY_TEXT, style::FONT_SIZE_LABEL);
-    let val_h = text_height(fc, "0%", style::FONT_FAMILY_TEXT, style::FONT_SIZE_DEFAULT);
+    let label_h = text_height(fc, "CPU", style::FONT_FAMILY_TEXT, style::FONT_SIZE_2XS);
+    let val_h = text_height(fc, "0%", style::FONT_FAMILY_TEXT, style::FONT_SIZE_SM);
     let col_h = label_h + val_h;
     let col_y = rect.top + (rect.height() - col_h) / 2.0;
 
-    let cpu_label_w = measure_text(fc, "CPU", style::FONT_FAMILY_TEXT, style::FONT_SIZE_LABEL);
+    let cpu_label_w = measure_text(fc, "CPU", style::FONT_FAMILY_TEXT, style::FONT_SIZE_2XS);
     let cpu_val = format!("{:>3.0}%", data.cpu_percent);
     let cpu_val_w = measure_text(
         fc,
         &cpu_val,
         style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_DEFAULT,
+        style::FONT_SIZE_SM,
     );
     let cpu_col_w = cpu_label_w.max(cpu_val_w);
 
@@ -119,7 +119,7 @@ pub fn draw(canvas: &Canvas, fc: &FontCollection, data: &BarData, rect: Rect) {
         cpu_label_x,
         col_y,
         style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_LABEL,
+        style::FONT_SIZE_2XS,
         style::TEXT_COLOR,
     );
     // Center value within column
@@ -131,7 +131,7 @@ pub fn draw(canvas: &Canvas, fc: &FontCollection, data: &BarData, rect: Rect) {
         cpu_val_x,
         col_y + label_h,
         style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_DEFAULT,
+        style::FONT_SIZE_SM,
         style::TEXT_COLOR,
     );
 
@@ -143,14 +143,14 @@ pub fn draw(canvas: &Canvas, fc: &FontCollection, data: &BarData, rect: Rect) {
         fc,
         &mem_label,
         style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_LABEL,
+        style::FONT_SIZE_2XS,
     );
     let mem_val = format!("{:.1}G", convert_to_gb(data.mem_used));
     let mem_val_w = measure_text(
         fc,
         &mem_val,
         style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_DEFAULT,
+        style::FONT_SIZE_SM,
     );
     let mem_col_w = mem_label_w.max(mem_val_w);
 
@@ -163,7 +163,7 @@ pub fn draw(canvas: &Canvas, fc: &FontCollection, data: &BarData, rect: Rect) {
         mem_label_x,
         col_y,
         style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_LABEL,
+        style::FONT_SIZE_2XS,
         style::TEXT_COLOR,
     );
     // Center value within column
@@ -175,7 +175,7 @@ pub fn draw(canvas: &Canvas, fc: &FontCollection, data: &BarData, rect: Rect) {
         mem_val_x,
         col_y + label_h,
         style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_DEFAULT,
+        style::FONT_SIZE_SM,
         style::TEXT_COLOR,
     );
 }
