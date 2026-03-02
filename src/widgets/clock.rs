@@ -1,67 +1,92 @@
-use chrono::Local;
-use iced::widget::{button, column, text};
-use iced::{Element, Subscription, Task};
-use std::time::Duration;
+//! Clock widget: date (small) above time (larger) in a pill.
 
-#[derive(Debug, Clone)]
-pub struct State {
-    date: String,
-    time: String,
+use skia_safe::textlayout::FontCollection;
+use skia_safe::{Canvas, Rect};
+
+use crate::data::BarData;
+use crate::render::{draw_pill, draw_text, measure_text, text_height};
+use crate::style;
+
+/// Measure the width this widget needs.
+pub fn measure(fc: &FontCollection, data: &BarData) -> f32 {
+    let date_w = measure_text(
+        fc,
+        &data.date,
+        style::FONT_FAMILY_TEXT,
+        style::FONT_SIZE_SMALL,
+    );
+    let time_w = measure_text(
+        fc,
+        &data.time,
+        style::FONT_FAMILY_TEXT,
+        style::FONT_SIZE_TIME,
+    );
+    let inner = date_w.max(time_w);
+    inner + style::WIDGET_PADDING_H * 2.0
 }
 
-#[derive(Debug, Clone)]
-pub enum Message {
-    Tick,
-}
+/// Draw the clock widget into the given rect.
+pub fn draw(canvas: &Canvas, fc: &FontCollection, data: &BarData, rect: Rect) {
+    draw_pill(
+        canvas,
+        rect,
+        style::WIDGET_RADIUS,
+        style::WIDGET_BG,
+        style::WIDGET_BORDER,
+        style::WIDGET_BORDER_WIDTH,
+    );
 
-impl Default for State {
-    fn default() -> Self {
-        let mut state = Self {
-            date: String::new(),
-            time: String::new(),
-        };
-        state.refresh();
-        state
-    }
-}
+    let date_h = text_height(
+        fc,
+        &data.date,
+        style::FONT_FAMILY_TEXT,
+        style::FONT_SIZE_SMALL,
+    );
+    let time_h = text_height(
+        fc,
+        &data.time,
+        style::FONT_FAMILY_TEXT,
+        style::FONT_SIZE_TIME,
+    );
+    let total_h = date_h + time_h;
+    let start_y = rect.top + (rect.height() - total_h) / 2.0;
 
-impl State {
-    pub fn new() -> (Self, Task<Message>) {
-        (Self::default(), Task::none())
-    }
+    let date_w = measure_text(
+        fc,
+        &data.date,
+        style::FONT_FAMILY_TEXT,
+        style::FONT_SIZE_SMALL,
+    );
+    let time_w = measure_text(
+        fc,
+        &data.time,
+        style::FONT_FAMILY_TEXT,
+        style::FONT_SIZE_TIME,
+    );
 
-    pub fn update(&mut self, message: Message) -> Task<Message> {
-        match message {
-            Message::Tick => self.refresh(),
-        }
-        Task::none()
-    }
+    // Center date
+    let date_x = rect.left + (rect.width() - date_w) / 2.0;
+    draw_text(
+        canvas,
+        fc,
+        &data.date,
+        date_x,
+        start_y,
+        style::FONT_FAMILY_TEXT,
+        style::FONT_SIZE_SMALL,
+        style::TEXT_COLOR,
+    );
 
-    pub fn subscription(&self) -> Subscription<Message> {
-        iced::time::every(Duration::from_secs(1)).map(|_| Message::Tick)
-    }
-
-    fn refresh(&mut self) {
-        let now = Local::now();
-        self.date = now.format("%a %b %d").to_string();
-        self.time = now.format("%H:%M").to_string();
-    }
-
-    pub fn view<'a>(&'a self) -> Element<'a, Message> {
-        let content = column![
-            text(self.date.clone())
-                .size(10)
-                .color(crate::hex!(0x000000)),
-            text(self.time.clone())
-                .size(16)
-                .color(crate::hex!(0x000000)),
-        ]
-        .spacing(0)
-        .align_x(iced::Alignment::Center);
-
-        button(content)
-            .padding([0, 6])
-            .style(crate::style::widget_container_style)
-            .into()
-    }
+    // Center time
+    let time_x = rect.left + (rect.width() - time_w) / 2.0;
+    draw_text(
+        canvas,
+        fc,
+        &data.time,
+        time_x,
+        start_y + date_h,
+        style::FONT_FAMILY_TEXT,
+        style::FONT_SIZE_TIME,
+        style::TEXT_COLOR,
+    );
 }

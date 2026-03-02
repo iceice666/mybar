@@ -10,6 +10,9 @@ pub struct DisplaySpec {
 mod macos;
 
 #[cfg(target_os = "macos")]
+pub use macos::configure_bar_window;
+
+#[cfg(target_os = "macos")]
 pub fn displays() -> Vec<DisplaySpec> {
     macos::displays()
 }
@@ -23,17 +26,9 @@ pub fn displays() -> Vec<DisplaySpec> {
     }]
 }
 
-#[cfg(target_os = "macos")]
-pub fn configure_bar_window(
-    window: &dyn iced::window::Window,
-    bar_height: f32,
-) -> Result<(), String> {
-    macos::configure_bar_window(window, bar_height)
-}
-
 #[cfg(not(target_os = "macos"))]
 pub fn configure_bar_window(
-    _window: &dyn iced::window::Window,
+    _window: &winit::window::Window,
     _bar_height: f32,
 ) -> Result<(), String> {
     Ok(())
@@ -58,4 +53,3 @@ pub fn hide_from_dock() {
 
 #[cfg(not(target_os = "macos"))]
 pub fn hide_from_dock() {}
-// Reserved for future platform-specific UI integrations.

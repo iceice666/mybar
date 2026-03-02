@@ -1,59 +1,51 @@
-use iced::widget::{button, container};
-use iced::{Background, Border, Color, Font, Theme};
+use skia_safe::Color4f;
 
-/// All widgets: bg #ffffff66, fg #000000
-pub fn widget_container_style(_theme: &Theme, _status: button::Status) -> button::Style {
-    button::Style {
-        background: Background::Color(crate::hex!(0xffffff66)).into(),
-        border: Border {
-            color: crate::hex!(0x00000022),
-            width: 1.0,
-            radius: 6.0.into(),
-        },
-        ..Default::default()
-    }
-}
+// -- Fonts ------------------------------------------------------------------
 
-/// Focused workspace badge: distinct bg for testing (#DDAACC66)
-pub fn focused_widget_container_style(_theme: &Theme, _status: button::Status) -> button::Style {
-    button::Style {
-        background: Background::Color(crate::hex!(0xDDAACC66)).into(),
-        border: Border {
-            color: crate::hex!(0xDDAACC66),
-            width: 1.0,
-            radius: 6.0.into(),
-        },
-        ..Default::default()
-    }
-}
+pub const FONT_FAMILY_TEXT: &str = "Cascadia Code NF";
+pub const FONT_FAMILY_ICON: &str = "sketchybar-app-font";
 
-pub fn bar_container_style() -> container::Style {
-    container::Style::default()
-        .background(Background::Color(Color::TRANSPARENT))
-        .border(Border {
-            color: crate::hex!(0x00000022),
-            width: 1.0,
-            radius: 8.0.into(),
-        })
-}
+// -- Bar dimensions ---------------------------------------------------------
 
-/// Container style matching widget buttons (bg #ffffff66) for the apps area etc.
-pub fn widget_container_style_container() -> container::Style {
-    container::Style::default()
-        .background(Background::Color(crate::hex!(0xffffff66)))
-        .border(Border {
-            color: crate::hex!(0x00000022),
-            width: 1.0,
-            radius: 6.0.into(),
-        })
-}
+pub const BAR_HEIGHT: f32 = 36.0;
+pub const BAR_PADDING_H: f32 = 10.0;
+pub const BAR_PADDING_V: f32 = 2.0;
 
-pub const FONT_TEXT: Font = Font {
-    family: iced::font::Family::Name("Cascadia Code NF"),
-    ..Font::DEFAULT
-};
+// -- Widget pill styles -----------------------------------------------------
 
-pub const FONT_ICON: Font = Font {
-    family: iced::font::Family::Name("sketchybar-app-font"),
-    ..Font::DEFAULT
-};
+pub const WIDGET_BG: Color4f = Color4f::new(1.0, 1.0, 1.0, 0.4); // #ffffff66
+pub const WIDGET_BORDER: Color4f = Color4f::new(0.0, 0.0, 0.0, 0.133); // #00000022
+pub const WIDGET_BORDER_WIDTH: f32 = 1.0;
+pub const WIDGET_RADIUS: f32 = 6.0;
+pub const WIDGET_PADDING_H: f32 = 6.0;
+#[allow(dead_code)]
+pub const WIDGET_PADDING_V: f32 = 2.0;
+
+pub const FOCUSED_BG: Color4f = Color4f::new(0.867, 0.667, 0.8, 0.4); // #DDAACC66
+pub const FOCUSED_BORDER: Color4f = Color4f::new(0.867, 0.667, 0.8, 0.4);
+
+#[allow(dead_code)]
+pub const BAR_BORDER: Color4f = Color4f::new(0.0, 0.0, 0.0, 0.133); // #00000022
+#[allow(dead_code)]
+pub const BAR_BORDER_WIDTH: f32 = 1.0;
+#[allow(dead_code)]
+pub const BAR_RADIUS: f32 = 8.0;
+
+// -- Text colors ------------------------------------------------------------
+
+pub const TEXT_COLOR: Color4f = Color4f::new(0.0, 0.0, 0.0, 1.0); // #000000
+
+// -- Font sizes -------------------------------------------------------------
+
+pub const FONT_SIZE_DEFAULT: f32 = 14.0;
+pub const FONT_SIZE_SMALL: f32 = 10.0;
+pub const FONT_SIZE_LABEL: f32 = 8.0;
+pub const FONT_SIZE_TIME: f32 = 16.0;
+pub const FONT_SIZE_ICON: f32 = 18.0;
+pub const FONT_SIZE_BATTERY_ICON: f32 = 24.0;
+
+// -- Spacing ----------------------------------------------------------------
+
+pub const SECTION_SPACING: f32 = 8.0;
+pub const WIDGET_SPACING: f32 = 4.0;
+pub const INNER_SPACING: f32 = 4.0;

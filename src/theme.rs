@@ -1,4 +1,4 @@
-/// Build `Color` from hex: `hex!(0xRRGGBB)` (opaque) or `hex!(0xRRGGBBAA)`.
+/// Build `skia_safe::Color4f` from hex: `hex!(0xRRGGBB)` (opaque) or `hex!(0xRRGGBBAA)`.
 #[macro_export]
 macro_rules! hex {
     ($hex:expr) => {{
@@ -18,6 +18,6 @@ macro_rules! hex {
                 (h & 0xFF) as f32 / 255.0,
             )
         };
-        iced::Color { r, g, b, a }
+        skia_safe::Color4f::new(r, g, b, a)
     }};
 }

@@ -1,12 +1,12 @@
 use super::DisplaySpec;
-use objc2::MainThreadMarker;
 use objc2::rc::Retained;
+use objc2::MainThreadMarker;
 use objc2_app_kit::{
     NSApplication, NSApplicationActivationPolicy, NSColor, NSMainMenuWindowLevel, NSScreen, NSView,
     NSWindowCollectionBehavior, NSWindowStyleMask,
 };
 use objc2_foundation::{NSPoint, NSRect, NSSize};
-use raw_window_handle::RawWindowHandle;
+use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 
 pub fn displays() -> Vec<DisplaySpec> {
     let Some(mtm) = MainThreadMarker::new() else {
@@ -43,10 +43,7 @@ pub fn displays() -> Vec<DisplaySpec> {
     }
 }
 
-pub fn configure_bar_window(
-    window: &dyn iced::window::Window,
-    bar_height: f32,
-) -> Result<(), String> {
+pub fn configure_bar_window(window: &winit::window::Window, bar_height: f32) -> Result<(), String> {
     let mtm = MainThreadMarker::new().ok_or_else(|| String::from("must run on main thread"))?;
 
     let handle = window
