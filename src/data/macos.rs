@@ -1,4 +1,4 @@
-//! macOS-specific data sources: AeroSpace WM, nowplaying-cli, bridge files, Core WLAN.
+//! macOS-specific data sources: AeroSpace WM, nowplaying-cli, Core WLAN.
 
 use objc2::rc::autoreleasepool;
 use objc2_core_wlan::CWWiFiClient;
@@ -36,16 +36,6 @@ pub async fn load_wm_data() -> WmData {
         focused_workspace: wm_focused_workspace(),
         apps_in_focused_workspace: Vec::new(),
     }
-}
-
-pub async fn load_focused_workspace_bridge() -> Option<String> {
-    let content = std::fs::read_to_string("/tmp/mybar-aerospace-focused-workspace").ok()?;
-    parse_focused_workspace_bridge(content)
-}
-
-pub async fn load_mode_bridge() -> Option<String> {
-    let content = std::fs::read_to_string("/tmp/aerospace-mode").ok()?;
-    parse_mode_bridge(content)
 }
 
 pub async fn load_apps_for_workspace(workspace: &str) -> Vec<String> {
@@ -118,41 +108,6 @@ fn parse_lines(output: String) -> Vec<String> {
         .filter(|l| !l.is_empty())
         .map(ToOwned::to_owned)
         .collect()
-}
-
-fn parse_focused_workspace_bridge(content: String) -> Option<String> {
-    let trimmed = content.trim();
-    if trimmed.is_empty() {
-        return None;
-    }
-    if let Some(value) = trimmed.strip_prefix("FOCUSED_WORKSPACE=") {
-        let value = value.trim();
-        if value.is_empty() {
-            None
-        } else {
-            Some(value.to_owned())
-        }
-    } else {
-        Some(trimmed.to_owned())
-    }
-}
-
-fn parse_mode_bridge(content: String) -> Option<String> {
-    let trimmed = content.trim();
-    if trimmed.is_empty() {
-        return None;
-    }
-    for key in ["MODE=", "AEROSPACE_MODE="] {
-        if let Some(value) = trimmed.strip_prefix(key) {
-            let value = value.trim();
-            return if value.is_empty() {
-                None
-            } else {
-                Some(value.to_owned())
-            };
-        }
-    }
-    Some(trimmed.to_owned())
 }
 
 fn unique_preserve_order(input: Vec<String>) -> Vec<String> {

@@ -12,7 +12,7 @@ winit = "0.30"
 raw-window-handle = "0.6.2"
 
 # Async runtime
-tokio = { version = "1", features = ["rt-multi-thread", "time", "process", "macros", "sync", "fs"] }
+tokio = { version = "1", features = ["rt-multi-thread", "time", "process", "macros", "sync", "fs", "net", "io-util"] }
 
 # Data sources
 battery = "0.7.8"

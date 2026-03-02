@@ -18,16 +18,6 @@ pub async fn load_wm_data() -> WmData {
     }
 }
 
-pub async fn load_focused_workspace_bridge() -> Option<String> {
-    // TODO(linux-wm): EWMH _NET_CURRENT_DESKTOP or Wayland compositor workspace protocol
-    None
-}
-
-pub async fn load_mode_bridge() -> Option<String> {
-    // TODO(linux-wm): Compositor-specific mode (e.g. Sway mode, Hyprland mode)
-    None
-}
-
 pub async fn load_apps_for_workspace(_workspace: &str) -> Vec<String> {
     // TODO(linux-wm): EWMH _NET_CLIENT_LIST or Wayland wlr-foreign-toplevel
     Vec::new()

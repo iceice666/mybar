@@ -4,6 +4,8 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::watch;
 
+mod wm_bridge;
+
 #[cfg(target_os = "macos")]
 mod macos;
 #[cfg(target_os = "macos")]
@@ -81,6 +83,17 @@ pub fn spawn_collectors(
 ) -> watch::Receiver<BarData> {
     let (tx, rx) = watch::channel(BarData::default());
     let tx = Arc::new(tx);
+
+    // WM bridge listener (platform-agnostic) – direct push over Unix socket
+    {
+        let tx = tx.clone();
+        let notifier = notifier.clone();
+        let app_loader: wm_bridge::AppLoader =
+            Arc::new(|ws: String| Box::pin(async move { load_apps_for_workspace(&ws).await }));
+        rt.spawn(async move {
+            wm_bridge::run_wm_bridge_listener(tx, notifier, app_loader).await;
+        });
+    }
 
     // Clock – 1 s
     {
@@ -206,7 +219,7 @@ pub fn spawn_collectors(
         });
     }
 
-    // WM (AeroSpace on macOS, stubs on Linux) – fast tick 500ms + fallback 10s
+    // WM (AeroSpace on macOS, stubs on Linux) – full refresh 10s
     {
         let tx = tx.clone();
         let notifier = notifier.clone();
@@ -220,65 +233,19 @@ pub fn spawn_collectors(
                 tx.send_modify(|d| d.wm.apps_in_focused_workspace = apps);
             }
             notifier();
-
-            let mut fast = tokio::time::interval(Duration::from_millis(500));
             let mut slow = tokio::time::interval(Duration::from_secs(10));
 
             loop {
-                tokio::select! {
-                    _ = fast.tick() => {
-                        // Fast bridge reads
-                        let focused = load_focused_workspace_bridge().await;
-                        let mode = load_mode_bridge().await;
-                        let mut changed = false;
-
-                        let prev_focused = tx.borrow().wm.focused_workspace.clone();
-
-                        tx.send_modify(|d| {
-                            if let Some(ref m) = mode {
-                                if d.wm.mode != *m {
-                                    d.wm.mode = m.clone();
-                                    changed = true;
-                                }
-                            }
-                            if focused != d.wm.focused_workspace {
-                                // Ensure the workspace appears in the list
-                                if let Some(ref ws) = focused {
-                                    if !d.wm.used_workspaces.iter().any(|w| w == ws) {
-                                        d.wm.used_workspaces.push(ws.clone());
-                                        d.wm.used_workspaces = unique_sorted_workspaces(
-                                            std::mem::take(&mut d.wm.used_workspaces),
-                                        );
-                                    }
-                                }
-                                d.wm.focused_workspace = focused.clone();
-                                changed = true;
-                            }
-                        });
-
-                        if changed {
-                            // Reload apps for the newly focused workspace
-                            if let Some(ref ws) = focused {
-                                if focused != prev_focused {
-                                    let apps = load_apps_for_workspace(ws).await;
-                                    tx.send_modify(|d| d.wm.apps_in_focused_workspace = apps);
-                                }
-                            }
-                            notifier();
-                        }
-                    }
-                    _ = slow.tick() => {
-                        // Full refresh
-                        let data = load_wm_data().await;
-                        let focused = data.focused_workspace.clone();
-                        tx.send_modify(|d| d.wm = data);
-                        if let Some(ws) = &focused {
-                            let apps = load_apps_for_workspace(ws).await;
-                            tx.send_modify(|d| d.wm.apps_in_focused_workspace = apps);
-                        }
-                        notifier();
-                    }
+                slow.tick().await;
+                // Full refresh
+                let data = load_wm_data().await;
+                let focused = data.focused_workspace.clone();
+                tx.send_modify(|d| d.wm = data);
+                if let Some(ws) = &focused {
+                    let apps = load_apps_for_workspace(ws).await;
+                    tx.send_modify(|d| d.wm.apps_in_focused_workspace = apps);
                 }
+                notifier();
             }
         });
     }
