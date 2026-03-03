@@ -28,23 +28,39 @@ fn network_icon(wifi_signal: Option<u8>) -> &'static str {
 }
 
 fn format_k(bytes_per_sec: f64) -> String {
-    let kb = bytes_per_sec / 1024.0;
-    if kb < 1.0 {
-        return " -- ".to_string();
-    }
-    if kb < 1024.0 {
-        if kb < 100.0 {
-            format!("{:.1}K", kb)
-        } else {
-            format!("{:.0}K ", kb)
+    fn format_unit(value: f64, unit: char) -> String {
+        // Always render as a 3-character numeric field + 1-character unit.
+        if value < 10.0 {
+            // One decimal place for small values (e.g. "1.2M").
+            let rounded = (value * 10.0).round() / 10.0;
+            // If rounding pushed us to 10.0, fall through to the integer branch.
+            if rounded < 10.0 {
+                return format!("{:>3.1}{}", rounded, unit);
+            }
         }
+
+        // Integer branch for values >= 10.0.
+        let mut rounded = value.round();
+        if rounded > 999.0 {
+            // Cap at 3 digits to preserve fixed width.
+            rounded = 999.0;
+        }
+        format!("{:>3.0}{}", rounded, unit)
+    }
+
+    let kb = bytes_per_sec / 1024.0;
+
+    // Treat very small values as "0.0K" to avoid placeholder glyphs,
+    // while keeping the same fixed-width layout.
+    if kb < 0.1 {
+        return "0.0K".to_string();
+    }
+
+    if kb < 1024.0 {
+        format_unit(kb, 'K')
     } else {
         let mb = kb / 1024.0;
-        if mb < 100.0 {
-            format!("{:.1}M", mb)
-        } else {
-            format!("{:.0}M ", mb)
-        }
+        format_unit(mb, 'M')
     }
 }
 
