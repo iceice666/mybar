@@ -1,12 +1,12 @@
 //! macOS Metal renderer backend.
 
-use objc2::rc::{autoreleasepool, Retained};
+use objc2::rc::{Retained, autoreleasepool};
 use objc2::runtime::ProtocolObject;
 use objc2_core_foundation::CGSize;
 use objc2_metal::{MTLCommandBuffer, MTLCommandQueue, MTLCreateSystemDefaultDevice, MTLDevice};
 use objc2_quartz_core::CAMetalDrawable;
 use raw_window_handle::{HasWindowHandle, RawWindowHandle};
-use skia_safe::gpu::{self, backend_render_targets, mtl, DirectContext, SurfaceOrigin};
+use skia_safe::gpu::{self, DirectContext, SurfaceOrigin, backend_render_targets, mtl};
 use skia_safe::textlayout::FontCollection;
 use skia_safe::{Canvas, ColorType};
 use winit::window::Window;

@@ -1,6 +1,6 @@
 use super::DisplaySpec;
-use objc2::rc::Retained;
 use objc2::MainThreadMarker;
+use objc2::rc::Retained;
 use objc2_app_kit::{
     NSApplication, NSApplicationActivationPolicy, NSColor, NSMainMenuWindowLevel, NSScreen, NSView,
     NSWindowCollectionBehavior, NSWindowStyleMask,
@@ -8,38 +8,27 @@ use objc2_app_kit::{
 use objc2_foundation::{NSPoint, NSRect, NSSize};
 use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 
-pub fn displays() -> Vec<DisplaySpec> {
+pub fn primary_display() -> DisplaySpec {
     let Some(mtm) = MainThreadMarker::new() else {
-        return vec![DisplaySpec {
-            index: 0,
+        return DisplaySpec {
             x: 0.0,
             width: 1024.0,
-        }];
+        };
     };
 
-    let screens = NSScreen::screens(mtm);
-    let output: Vec<DisplaySpec> = screens
-        .to_vec()
-        .into_iter()
-        .enumerate()
-        .map(|(index, screen)| {
-            let frame = screen.frame();
-            DisplaySpec {
-                index,
-                x: frame.origin.x as f32,
-                width: frame.size.width as f32,
-            }
-        })
-        .collect();
-
-    if output.is_empty() {
-        vec![DisplaySpec {
-            index: 0,
+    let Some(screen) =
+        NSScreen::mainScreen(mtm).or_else(|| NSScreen::screens(mtm).to_vec().into_iter().next())
+    else {
+        return DisplaySpec {
             x: 0.0,
             width: 1024.0,
-        }]
-    } else {
-        output
+        };
+    };
+
+    let frame = screen.frame();
+    DisplaySpec {
+        x: frame.origin.x as f32,
+        width: frame.size.width as f32,
     }
 }
 

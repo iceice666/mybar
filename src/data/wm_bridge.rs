@@ -6,11 +6,14 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::net::{UnixListener, UnixStream};
 use tokio::task;
 
-use super::{BarData, RedrawNotifier};
+use super::{BarData, RedrawNotifier, WmData};
 
 /// Type alias for an async workspace app loader.
 pub type AppLoader =
     Arc<dyn Fn(String) -> Pin<Box<dyn Future<Output = Vec<String>> + Send>> + Send + Sync>;
+
+/// Type alias for an async WM snapshot loader.
+pub type WmLoader = Arc<dyn Fn() -> Pin<Box<dyn Future<Output = WmData> + Send>> + Send + Sync>;
 
 const WM_BRIDGE_SOCKET: &str = "/tmp/mybar-wm-bridge.sock";
 
@@ -19,10 +22,12 @@ const WM_BRIDGE_SOCKET: &str = "/tmp/mybar-wm-bridge.sock";
 /// Protocol (per line):
 /// - `MODE=<value>` or `AEROSPACE_MODE=<value>` updates `wm.mode`
 /// - `FOCUSED_WORKSPACE=<value>` or bare `<value>` updates `wm.focused_workspace`
+/// - `UPDATE_ALL` force-refreshes all WM state (mode/workspaces/focused/apps)
 pub async fn run_wm_bridge_listener(
     tx: Arc<tokio::sync::watch::Sender<BarData>>,
     notifier: RedrawNotifier,
     app_loader: AppLoader,
+    wm_loader: WmLoader,
 ) {
     // Remove any stale socket from previous run.
     let _ = std::fs::remove_file(WM_BRIDGE_SOCKET);
@@ -47,8 +52,9 @@ pub async fn run_wm_bridge_listener(
         let tx = tx.clone();
         let notifier = notifier.clone();
         let app_loader = app_loader.clone();
+        let wm_loader = wm_loader.clone();
         task::spawn(async move {
-            if let Err(err) = handle_stream(stream, tx, notifier, app_loader).await {
+            if let Err(err) = handle_stream(stream, tx, notifier, app_loader, wm_loader).await {
                 eprintln!("wm_bridge: stream handler error: {}", err);
             }
         });
@@ -60,6 +66,7 @@ async fn handle_stream(
     tx: Arc<tokio::sync::watch::Sender<BarData>>,
     notifier: RedrawNotifier,
     app_loader: AppLoader,
+    wm_loader: WmLoader,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut reader = BufReader::new(stream);
     let mut line = String::new();
@@ -81,12 +88,21 @@ async fn handle_stream(
             continue;
         }
 
+        if parse_update_all_line(trimmed) {
+            apply_force_update(&tx, &notifier, &app_loader, &wm_loader).await;
+            continue;
+        }
+
         if let Some(ws) = parse_focused_workspace_line(trimmed) {
             apply_workspace_update(&tx, &notifier, &app_loader, ws).await;
         }
     }
 
     Ok(())
+}
+
+fn parse_update_all_line(line: &str) -> bool {
+    line.trim() == "UPDATE_ALL"
 }
 
 fn parse_mode_line(line: &str) -> Option<String> {
@@ -185,3 +201,18 @@ async fn apply_workspace_update(
     }
 }
 
+async fn apply_force_update(
+    tx: &Arc<tokio::sync::watch::Sender<BarData>>,
+    notifier: &RedrawNotifier,
+    app_loader: &AppLoader,
+    wm_loader: &WmLoader,
+) {
+    let mut wm = (wm_loader)().await;
+    if let Some(focused_ws) = wm.focused_workspace.clone() {
+        let apps = (app_loader)(focused_ws).await;
+        wm.apps_in_focused_workspace = apps;
+    }
+
+    tx.send_modify(|d| d.wm = wm.clone());
+    notifier();
+}

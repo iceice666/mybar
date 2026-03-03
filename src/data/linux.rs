@@ -13,6 +13,7 @@ pub async fn load_wm_data() -> WmData {
     WmData {
         mode: wm_mode().unwrap_or_else(|| String::from("main")),
         used_workspaces: wm_used_workspaces(),
+        monitor_groups: Vec::new(),
         focused_workspace: wm_focused_workspace(),
         apps_in_focused_workspace: Vec::new(),
     }

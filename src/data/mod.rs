@@ -58,8 +58,15 @@ impl Default for BarData {
 pub struct WmData {
     pub mode: String,
     pub used_workspaces: Vec<String>,
+    pub monitor_groups: Vec<MonitorGroup>,
     pub focused_workspace: Option<String>,
     pub apps_in_focused_workspace: Vec<String>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct MonitorGroup {
+    pub monitor_id: u32,
+    pub workspaces: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -90,8 +97,10 @@ pub fn spawn_collectors(
         let notifier = notifier.clone();
         let app_loader: wm_bridge::AppLoader =
             Arc::new(|ws: String| Box::pin(async move { load_apps_for_workspace(&ws).await }));
+        let wm_loader: wm_bridge::WmLoader =
+            Arc::new(|| Box::pin(async move { load_wm_data().await }));
         rt.spawn(async move {
-            wm_bridge::run_wm_bridge_listener(tx, notifier, app_loader).await;
+            wm_bridge::run_wm_bridge_listener(tx, notifier, app_loader, wm_loader).await;
         });
     }
 
@@ -293,11 +302,11 @@ pub(crate) fn unique_sorted_workspaces(input: Vec<String>) -> Vec<String> {
         .collect::<std::collections::BTreeSet<_>>()
         .into_iter()
         .collect();
-    output.sort_by(|a, b| {
-        match (a.parse::<i64>().ok(), b.parse::<i64>().ok()) {
+    output.sort_by(
+        |a, b| match (a.parse::<i64>().ok(), b.parse::<i64>().ok()) {
             (Some(l), Some(r)) => l.cmp(&r),
             _ => a.cmp(b),
-        }
-    });
+        },
+    );
     output
 }

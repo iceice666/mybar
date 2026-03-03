@@ -23,6 +23,9 @@ pub const WIDGET_PADDING_V: f32 = 2.0;
 
 pub const FOCUSED_BG: Color4f = Color4f::new(0.867, 0.667, 0.8, 0.4); // #DDAACC66
 pub const FOCUSED_BORDER: Color4f = Color4f::new(0.867, 0.667, 0.8, 0.4);
+pub const MONITOR_DIVIDER_COLOR: Color4f = Color4f::new(0.0, 0.0, 0.0, 0.3);
+pub const MONITOR_DIVIDER_WIDTH: f32 = 1.0;
+pub const MONITOR_DIVIDER_MARGIN: f32 = 6.0;
 
 #[allow(dead_code)]
 pub const BAR_BORDER: Color4f = Color4f::new(0.0, 0.0, 0.0, 0.133); // #00000022

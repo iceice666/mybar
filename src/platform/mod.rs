@@ -1,7 +1,5 @@
 #[derive(Debug, Clone)]
 pub struct DisplaySpec {
-    #[allow(dead_code)]
-    pub index: usize,
     pub x: f32,
     pub width: f32,
 }
@@ -16,20 +14,17 @@ mod linux;
 pub use macos::configure_bar_window;
 
 #[cfg(target_os = "macos")]
-pub fn displays() -> Vec<DisplaySpec> {
-    macos::displays()
+pub fn primary_display() -> DisplaySpec {
+    macos::primary_display()
 }
 
 #[cfg(target_os = "linux")]
-pub fn displays() -> Vec<DisplaySpec> {
-    linux::displays_wayland()
+pub fn primary_display() -> DisplaySpec {
+    linux::primary_display_wayland()
 }
 
 #[cfg(target_os = "linux")]
-pub fn configure_bar_window(
-    window: &winit::window::Window,
-    bar_height: f32,
-) -> Result<(), String> {
+pub fn configure_bar_window(window: &winit::window::Window, bar_height: f32) -> Result<(), String> {
     linux::configure_bar_window_wayland(window, bar_height)
 }
 

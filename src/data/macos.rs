@@ -3,7 +3,7 @@
 use objc2::rc::autoreleasepool;
 use objc2_core_wlan::CWWiFiClient;
 
-use super::{NowPlayingData, WmData};
+use super::{MonitorGroup, NowPlayingData, WmData};
 
 pub async fn load_now_playing() -> Option<NowPlayingData> {
     let output = tokio::process::Command::new("nowplaying-cli")
@@ -30,9 +30,27 @@ pub async fn load_now_playing() -> Option<NowPlayingData> {
 }
 
 pub async fn load_wm_data() -> WmData {
+    let monitor_groups = wm_workspaces_by_monitor();
+    let used_workspaces = wm_used_workspaces();
+    let used_workspaces = if !monitor_groups.is_empty() {
+        let merged = monitor_groups
+            .iter()
+            .flat_map(|group| group.workspaces.iter().cloned())
+            .collect::<Vec<_>>();
+        let merged = super::unique_sorted_workspaces(merged);
+        if merged.is_empty() {
+            used_workspaces
+        } else {
+            merged
+        }
+    } else {
+        used_workspaces
+    };
+
     WmData {
         mode: wm_mode().unwrap_or_else(|| String::from("main")),
-        used_workspaces: wm_used_workspaces(),
+        used_workspaces,
+        monitor_groups,
         focused_workspace: wm_focused_workspace(),
         apps_in_focused_workspace: Vec::new(),
     }
@@ -84,8 +102,45 @@ fn wm_used_workspaces() -> Vec<String> {
 }
 
 fn wm_focused_workspace() -> Option<String> {
-    run_aerospace(&["list-workspaces", "--focused"])
-        .and_then(|o| parse_lines(o).into_iter().next())
+    run_aerospace(&["list-workspaces", "--focused"]).and_then(|o| parse_lines(o).into_iter().next())
+}
+
+fn wm_workspaces_by_monitor() -> Vec<MonitorGroup> {
+    let from_windows = run_aerospace(&[
+        "list-windows",
+        "--all",
+        "--format",
+        "%{workspace}\t%{monitor-id}",
+    ])
+    .map(parse_monitor_workspace_lines)
+    .unwrap_or_default();
+    if !from_windows.is_empty() {
+        return from_windows;
+    }
+
+    let monitor_ids = run_aerospace(&["list-monitors", "--format", "%{monitor-id}"])
+        .map(parse_lines)
+        .unwrap_or_default();
+
+    let mut groups = Vec::new();
+    for monitor in monitor_ids {
+        let Ok(monitor_id) = monitor.parse::<u32>() else {
+            continue;
+        };
+        let workspaces = run_aerospace(&["list-workspaces", "--monitor", &monitor])
+            .map(parse_lines)
+            .map(super::unique_sorted_workspaces)
+            .unwrap_or_default();
+        if workspaces.is_empty() {
+            continue;
+        }
+        groups.push(MonitorGroup {
+            monitor_id,
+            workspaces,
+        });
+    }
+    groups.sort_by_key(|group| group.monitor_id);
+    groups
 }
 
 fn run_aerospace(args: &[&str]) -> Option<String> {
@@ -115,6 +170,46 @@ fn unique_preserve_order(input: Vec<String>) -> Vec<String> {
     input
         .into_iter()
         .filter(|item| seen.insert(item.clone()))
+        .collect()
+}
+
+fn parse_monitor_workspace_lines(output: String) -> Vec<MonitorGroup> {
+    let mut by_monitor: std::collections::BTreeMap<u32, Vec<String>> =
+        std::collections::BTreeMap::new();
+
+    for line in output
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+    {
+        let mut parts = line.split('\t');
+        let Some(workspace) = parts.next() else {
+            continue;
+        };
+        let Some(monitor) = parts.next() else {
+            continue;
+        };
+        let workspace = workspace.trim();
+        if workspace.is_empty() {
+            continue;
+        }
+        let Ok(monitor_id) = monitor.trim().parse::<u32>() else {
+            continue;
+        };
+
+        by_monitor
+            .entry(monitor_id)
+            .or_default()
+            .push(workspace.to_owned());
+    }
+
+    by_monitor
+        .into_iter()
+        .map(|(monitor_id, workspaces)| MonitorGroup {
+            monitor_id,
+            workspaces: super::unique_sorted_workspaces(workspaces),
+        })
+        .filter(|group| !group.workspaces.is_empty())
         .collect()
 }
 

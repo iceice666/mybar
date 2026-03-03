@@ -1,7 +1,7 @@
 //! Layout engine: computes widget rects for a horizontal bar.
 
-use skia_safe::textlayout::FontCollection;
 use skia_safe::Rect;
+use skia_safe::textlayout::FontCollection;
 
 use crate::data::BarData;
 use crate::style;
@@ -30,7 +30,7 @@ pub fn compute(fc: &FontCollection, data: &BarData, bar_width: f32, bar_height: 
     let mode = Rect::from_xywh(lx, inner_top, mode_w, inner_height);
     lx += mode_w + style::SECTION_SPACING;
 
-    let ws_w = widgets::wm::measure_workspaces(fc, data);
+    let ws_w = widgets::wm::measure_workspaces_grouped(fc, data);
     let workspaces = Rect::from_xywh(lx, inner_top, ws_w, inner_height);
 
     // ── Right section (laid out right-to-left) ────────────────────────────────

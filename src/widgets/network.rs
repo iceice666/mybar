@@ -66,12 +66,7 @@ fn format_k(bytes_per_sec: f64) -> String {
 
 pub fn measure(fc: &FontCollection, data: &BarData) -> f32 {
     let icon = network_icon(data.wifi_signal);
-    let icon_w = measure_text(
-        fc,
-        icon,
-        style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_2XL,
-    );
+    let icon_w = measure_text(fc, icon, style::FONT_FAMILY_TEXT, style::FONT_SIZE_2XL);
 
     let up_label_w = measure_text(fc, "UP", style::FONT_FAMILY_TEXT, style::FONT_SIZE_2XS);
     let up_val = format_k(data.net_upload);
@@ -105,12 +100,7 @@ pub fn draw(canvas: &Canvas, fc: &FontCollection, data: &BarData, rect: Rect) {
 
     // Icon (vertically centered; varies by WiFi signal when on WiFi)
     let icon = network_icon(data.wifi_signal);
-    let icon_h = text_height(
-        fc,
-        icon,
-        style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_2XL,
-    );
+    let icon_h = text_height(fc, icon, style::FONT_FAMILY_TEXT, style::FONT_SIZE_2XL);
     let icon_y = rect.top + (rect.height() - icon_h) / 2.0;
     draw_text(
         canvas,
@@ -122,12 +112,7 @@ pub fn draw(canvas: &Canvas, fc: &FontCollection, data: &BarData, rect: Rect) {
         style::FONT_SIZE_2XL,
         style::TEXT_COLOR,
     );
-    let icon_w = measure_text(
-        fc,
-        icon,
-        style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_2XL,
-    );
+    let icon_w = measure_text(fc, icon, style::FONT_FAMILY_TEXT, style::FONT_SIZE_2XL);
     x += icon_w + style::INNER_SPACING;
 
     // Upload column (label + value stacked)

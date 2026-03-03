@@ -1,23 +1,22 @@
 //! Linux Wayland platform stub.
 //!
 //! Future integration points:
-//! - **Display enumeration**: Use `wl_output` to enumerate outputs and their geometry
+//! - **Primary output detection**: Use `wl_output` to resolve the active primary output
 //! - **Bar window**: Use wlr-layer-shell (or equivalent) for top bar positioning,
 //!   always-on-top, and spanning the full output width
 //! - **Hide from taskbar**: Layer-shell top overlay typically does not appear in taskbars
 
 use super::DisplaySpec;
 
-/// Wayland: Enumerate displays via wl_output.
+/// Wayland: Resolve the primary display via wl_output.
 ///
-/// TODO(wayland): Connect to wl_display, bind wl_output, read output geometry
-/// and transform to DisplaySpec (x, width per output).
-pub fn displays_wayland() -> Vec<DisplaySpec> {
-    vec![DisplaySpec {
-        index: 0,
+/// TODO(wayland): Connect to wl_display, bind wl_output, select primary output,
+/// and transform its geometry to DisplaySpec (x, width).
+pub fn primary_display_wayland() -> DisplaySpec {
+    DisplaySpec {
         x: 0.0,
         width: 1024.0,
-    }]
+    }
 }
 
 /// Wayland: Configure bar window for layer-shell / top overlay.

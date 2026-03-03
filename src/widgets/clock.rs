@@ -9,12 +9,7 @@ use crate::style;
 
 /// Measure the width this widget needs.
 pub fn measure(fc: &FontCollection, data: &BarData) -> f32 {
-    let date_w = measure_text(
-        fc,
-        &data.date,
-        style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_XS,
-    );
+    let date_w = measure_text(fc, &data.date, style::FONT_FAMILY_TEXT, style::FONT_SIZE_XS);
     let time_w = measure_text(
         fc,
         &data.time,
@@ -36,12 +31,7 @@ pub fn draw(canvas: &Canvas, fc: &FontCollection, data: &BarData, rect: Rect) {
         style::WIDGET_BORDER_WIDTH,
     );
 
-    let date_h = text_height(
-        fc,
-        &data.date,
-        style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_XS,
-    );
+    let date_h = text_height(fc, &data.date, style::FONT_FAMILY_TEXT, style::FONT_SIZE_XS);
     let time_h = text_height(
         fc,
         &data.time,
@@ -51,12 +41,7 @@ pub fn draw(canvas: &Canvas, fc: &FontCollection, data: &BarData, rect: Rect) {
     let total_h = date_h + time_h;
     let start_y = rect.top + (rect.height() - total_h) / 2.0;
 
-    let date_w = measure_text(
-        fc,
-        &data.date,
-        style::FONT_FAMILY_TEXT,
-        style::FONT_SIZE_XS,
-    );
+    let date_w = measure_text(fc, &data.date, style::FONT_FAMILY_TEXT, style::FONT_SIZE_XS);
     let time_w = measure_text(
         fc,
         &data.time,

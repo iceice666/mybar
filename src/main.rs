@@ -1,7 +1,6 @@
 #[cfg(not(any(target_os = "macos", target_os = "linux")))]
 compile_error!("mybar only supports macOS and Linux");
 
-use std::collections::BTreeMap;
 use std::sync::Arc;
 
 #[cfg(target_os = "macos")]
@@ -38,8 +37,8 @@ struct BarWindow {
 // ── Application state ────────────────────────────────────────────────────────
 
 struct App {
-    windows: BTreeMap<WindowId, BarWindow>,
-    displays: Vec<platform::DisplaySpec>,
+    window: Option<BarWindow>,
+    display: platform::DisplaySpec,
     dock_hidden: bool,
     data_rx: watch::Receiver<data::BarData>,
     _rt: tokio::runtime::Runtime,
@@ -47,7 +46,7 @@ struct App {
 
 impl App {
     fn new(proxy: EventLoopProxy<UserEvent>) -> Self {
-        let displays = platform::displays();
+        let display = platform::primary_display();
 
         // Build tokio runtime
         let rt = tokio::runtime::Builder::new_multi_thread()
@@ -63,8 +62,8 @@ impl App {
         let data_rx = data::spawn_collectors(rt.handle(), notifier);
 
         Self {
-            windows: BTreeMap::new(),
-            displays,
+            window: None,
+            display,
             dock_hidden: false,
             data_rx,
             _rt: rt,
@@ -74,43 +73,35 @@ impl App {
 
 impl ApplicationHandler<UserEvent> for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        // Create one bar window per display
-        for display in &self.displays {
-            let size = LogicalSize::new(display.width as f64, style::BAR_HEIGHT as f64);
+        let size = LogicalSize::new(self.display.width as f64, style::BAR_HEIGHT as f64);
 
-            let mut attrs = WindowAttributes::default();
-            attrs.inner_size = Some(Size::Logical(size.into()));
-            attrs.title = "mybar".to_string();
-            attrs.decorations = false;
-            attrs.transparent = true;
-            attrs.window_level = WindowLevel::AlwaysOnTop;
-            attrs.position = Some(winit::dpi::Position::Physical(PhysicalPosition::new(
-                display.x as i32,
-                0,
-            )));
+        let mut attrs = WindowAttributes::default();
+        attrs.inner_size = Some(Size::Logical(size.into()));
+        attrs.title = "mybar".to_string();
+        attrs.decorations = false;
+        attrs.transparent = true;
+        attrs.window_level = WindowLevel::AlwaysOnTop;
+        attrs.position = Some(winit::dpi::Position::Physical(PhysicalPosition::new(
+            self.display.x as i32,
+            0,
+        )));
 
-            let window = event_loop
-                .create_window(attrs)
-                .expect("failed to create window");
+        let window = event_loop
+            .create_window(attrs)
+            .expect("failed to create window");
 
-            // Configure native window properties (menu bar level, join all spaces, etc.)
-            let _ = platform::configure_bar_window(&window, style::BAR_HEIGHT);
+        // Configure native window properties (menu bar level, join all spaces, etc.)
+        let _ = platform::configure_bar_window(&window, style::BAR_HEIGHT);
 
-            if !self.dock_hidden {
-                platform::hide_from_dock();
-                self.dock_hidden = true;
-            }
-
-            let renderer = render::Renderer::new(&window);
-            let id = window.id();
-            self.windows.insert(
-                id,
-                BarWindow { window, renderer },
-            );
+        if !self.dock_hidden {
+            platform::hide_from_dock();
+            self.dock_hidden = true;
         }
 
-        // Request initial redraw for all windows
-        for bw in self.windows.values() {
+        let renderer = render::Renderer::new(&window);
+        self.window = Some(BarWindow { window, renderer });
+
+        if let Some(bw) = &self.window {
             bw.window.request_redraw();
         }
     }
@@ -118,7 +109,7 @@ impl ApplicationHandler<UserEvent> for App {
     fn user_event(&mut self, _event_loop: &ActiveEventLoop, event: UserEvent) {
         match event {
             UserEvent::DataChanged => {
-                for bw in self.windows.values() {
+                if let Some(bw) = &self.window {
                     bw.window.request_redraw();
                 }
             }
@@ -131,9 +122,13 @@ impl ApplicationHandler<UserEvent> for App {
         window_id: WindowId,
         event: WindowEvent,
     ) {
-        let Some(bw) = self.windows.get_mut(&window_id) else {
+        let Some(bw) = self.window.as_mut() else {
             return;
         };
+
+        if bw.window.id() != window_id {
+            return;
+        }
 
         match event {
             WindowEvent::Resized(size) => {
@@ -159,7 +154,7 @@ impl ApplicationHandler<UserEvent> for App {
 
                     // Draw all widgets
                     widgets::wm::draw_mode(canvas, &fc, &data, lo.mode);
-                    widgets::wm::draw_workspaces(canvas, &fc, &data, lo.workspaces);
+                    widgets::wm::draw_workspaces_grouped(canvas, &fc, &data, lo.workspaces);
                     widgets::now_playing::draw(canvas, &fc, &data, lo.now_playing);
                     widgets::perf::draw(canvas, &fc, &data, lo.perf);
                     widgets::network::draw(canvas, &fc, &data, lo.network);
