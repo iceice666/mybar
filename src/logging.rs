@@ -7,6 +7,10 @@ use chrono::Local;
 
 static LOG_FILE: OnceLock<Option<Mutex<File>>> = OnceLock::new();
 
+pub fn init() {
+    let _ = LOG_FILE.get_or_init(open_log_file);
+}
+
 pub fn error(message: &str) {
     write_line("ERROR", message);
 }

@@ -174,6 +174,8 @@ impl ApplicationHandler<UserEvent> for App {
 // ── Entry point ──────────────────────────────────────────────────────────────
 
 fn main() {
+    logging::init();
+
     let event_loop = EventLoop::<UserEvent>::with_user_event()
         .build()
         .expect("failed to create event loop");
