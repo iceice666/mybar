@@ -30,28 +30,28 @@ pub async fn load_now_playing() -> Option<NowPlayingData> {
 }
 
 pub async fn load_wm_data() -> WmData {
-    let monitor_groups = wm_workspaces_by_monitor();
-    let used_workspaces = wm_used_workspaces();
-    let used_workspaces = if !monitor_groups.is_empty() {
-        let merged = monitor_groups
-            .iter()
-            .flat_map(|group| group.workspaces.iter().cloned())
-            .collect::<Vec<_>>();
-        let merged = super::unique_sorted_workspaces(merged);
-        if merged.is_empty() {
-            used_workspaces
-        } else {
-            merged
-        }
-    } else {
-        used_workspaces
-    };
+    let focused_workspace = wm_focused_workspace();
+    let mut monitor_groups = wm_workspaces_by_monitor();
+    let mut used_workspaces = wm_used_workspaces();
 
-    WmData {
+    if let Some(ref ws) = focused_workspace {
+        if !used_workspaces.iter().any(|w| w == ws) {
+            used_workspaces.push(ws.clone());
+            used_workspaces = super::unique_sorted_workspaces(used_workspaces);
+        }
+        for group in monitor_groups.iter_mut() {
+            if !group.workspaces.iter().any(|w| w == ws) {
+                group.workspaces.push(ws.clone());
+                group.workspaces = super::unique_sorted_workspaces(std::mem::take(&mut group.workspaces));
+            }
+        }
+    }
+
+   WmData {
         mode: wm_mode().unwrap_or_else(|| String::from("main")),
         used_workspaces,
         monitor_groups,
-        focused_workspace: wm_focused_workspace(),
+        focused_workspace,
         apps_in_focused_workspace: Vec::new(),
     }
 }
@@ -89,16 +89,9 @@ fn wm_mode() -> Option<String> {
 }
 
 fn wm_used_workspaces() -> Vec<String> {
-    let preferred = run_aerospace(&["list-windows", "--all", "--format", "%{workspace}"])
+    run_aerospace(&["list-workspaces", "--monitor", "all"])
         .map(parse_lines)
-        .unwrap_or_default();
-    if !preferred.is_empty() {
-        return super::unique_sorted_workspaces(preferred);
-    }
-    let fallback = run_aerospace(&["list-workspaces", "--monitor", "all"])
-        .map(parse_lines)
-        .unwrap_or_default();
-    super::unique_sorted_workspaces(fallback)
+        .unwrap_or_default()
 }
 
 fn wm_focused_workspace() -> Option<String> {
@@ -106,41 +99,15 @@ fn wm_focused_workspace() -> Option<String> {
 }
 
 fn wm_workspaces_by_monitor() -> Vec<MonitorGroup> {
-    let from_windows = run_aerospace(&[
-        "list-windows",
-        "--all",
+    run_aerospace(&[
+        "list-workspaces",
+        "--monitor",
+        "all",
         "--format",
         "%{workspace}\t%{monitor-id}",
     ])
     .map(parse_monitor_workspace_lines)
-    .unwrap_or_default();
-    if !from_windows.is_empty() {
-        return from_windows;
-    }
-
-    let monitor_ids = run_aerospace(&["list-monitors", "--format", "%{monitor-id}"])
-        .map(parse_lines)
-        .unwrap_or_default();
-
-    let mut groups = Vec::new();
-    for monitor in monitor_ids {
-        let Ok(monitor_id) = monitor.parse::<u32>() else {
-            continue;
-        };
-        let workspaces = run_aerospace(&["list-workspaces", "--monitor", &monitor])
-            .map(parse_lines)
-            .map(super::unique_sorted_workspaces)
-            .unwrap_or_default();
-        if workspaces.is_empty() {
-            continue;
-        }
-        groups.push(MonitorGroup {
-            monitor_id,
-            workspaces,
-        });
-    }
-    groups.sort_by_key(|group| group.monitor_id);
-    groups
+    .unwrap_or_default()
 }
 
 fn run_aerospace(args: &[&str]) -> Option<String> {
