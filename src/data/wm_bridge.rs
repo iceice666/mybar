@@ -181,16 +181,6 @@ async fn apply_workspace_update(
             changed = true;
         }
 
-        if !d.wm.monitor_groups.is_empty() {
-            for group in d.wm.monitor_groups.iter_mut() {
-                if !group.workspaces.iter().any(|w| w == &ws) {
-                    group.workspaces.push(ws.clone());
-                    group.workspaces = super::unique_sorted_workspaces(std::mem::take(&mut group.workspaces));
-                    changed = true;
-                }
-            }
-        }
-
         if d.wm.focused_workspace.as_deref() != Some(ws.as_str()) {
             d.wm.focused_workspace = Some(ws.clone());
             changed = true;

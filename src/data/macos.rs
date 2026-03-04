@@ -31,23 +31,20 @@ pub async fn load_now_playing() -> Option<NowPlayingData> {
 
 pub async fn load_wm_data() -> WmData {
     let focused_workspace = wm_focused_workspace();
-    let mut monitor_groups = wm_workspaces_by_monitor();
+    let monitor_groups = wm_workspaces_by_monitor();
     let mut used_workspaces = wm_used_workspaces();
 
+    // Safety net: ensure the focused workspace is in used_workspaces even if
+    // aerospace returns it via list-workspaces --focused but not --monitor all
+    // (shouldn't happen in practice, but guards against transient CLI races).
     if let Some(ref ws) = focused_workspace {
         if !used_workspaces.iter().any(|w| w == ws) {
             used_workspaces.push(ws.clone());
             used_workspaces = super::unique_sorted_workspaces(used_workspaces);
         }
-        for group in monitor_groups.iter_mut() {
-            if !group.workspaces.iter().any(|w| w == ws) {
-                group.workspaces.push(ws.clone());
-                group.workspaces = super::unique_sorted_workspaces(std::mem::take(&mut group.workspaces));
-            }
-        }
     }
 
-   WmData {
+    WmData {
         mode: wm_mode().unwrap_or_else(|| String::from("main")),
         used_workspaces,
         monitor_groups,
