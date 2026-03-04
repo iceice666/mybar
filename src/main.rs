@@ -14,6 +14,7 @@ use winit::window::{Window, WindowAttributes, WindowId, WindowLevel};
 
 mod data;
 mod layout;
+mod logging;
 mod platform;
 mod render;
 mod style;

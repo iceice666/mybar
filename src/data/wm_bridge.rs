@@ -35,7 +35,10 @@ pub async fn run_wm_bridge_listener(
     let listener = match UnixListener::bind(WM_BRIDGE_SOCKET) {
         Ok(l) => l,
         Err(err) => {
-            eprintln!("wm_bridge: failed to bind {}: {}", WM_BRIDGE_SOCKET, err);
+            crate::logging::error(&format!(
+                "wm_bridge: failed to bind {}: {}",
+                WM_BRIDGE_SOCKET, err
+            ));
             return;
         }
     };
@@ -44,7 +47,7 @@ pub async fn run_wm_bridge_listener(
         let (stream, _) = match listener.accept().await {
             Ok(pair) => pair,
             Err(err) => {
-                eprintln!("wm_bridge: accept error: {}", err);
+                crate::logging::error(&format!("wm_bridge: accept error: {}", err));
                 continue;
             }
         };
@@ -55,7 +58,7 @@ pub async fn run_wm_bridge_listener(
         let wm_loader = wm_loader.clone();
         task::spawn(async move {
             if let Err(err) = handle_stream(stream, tx, notifier, app_loader, wm_loader).await {
-                eprintln!("wm_bridge: stream handler error: {}", err);
+                crate::logging::error(&format!("wm_bridge: stream handler error: {}", err));
             }
         });
     }
